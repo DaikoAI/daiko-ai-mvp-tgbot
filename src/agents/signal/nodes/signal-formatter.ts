@@ -113,16 +113,16 @@ ${riskFormatting.emoji} **Risk Assessment**
     signalDecision!.riskLevel === "HIGH"
       ? "High potential rewards but requires careful position sizing\\."
       : signalDecision!.riskLevel === "MEDIUM"
-      ? "Moderate risk with balanced risk\\-reward potential\\."
-      : "Relatively stable with lower volatility expected\\."
+        ? "Moderate risk with balanced risk\\-reward potential\\."
+        : "Relatively stable with lower volatility expected\\."
   }*
 
 ${timeframeEmoji} **Timeframe**: ${escapeMarkdownV2(signalDecision!.timeframe)} \\- ${
     signalDecision!.timeframe === "SHORT"
       ? "*Active monitoring required*"
       : signalDecision!.timeframe === "MEDIUM"
-      ? "*Regular check\\-ins recommended*"
-      : "*Patient approach suggested*"
+        ? "*Regular check\\-ins recommended*"
+        : "*Patient approach suggested*"
   }
 
 📌 **Key Factors**:
@@ -132,8 +132,8 @@ ${formattedKeyFactors}
     signalDecision!.direction === "BUY"
       ? "Consider your risk tolerance before entering position"
       : signalDecision!.direction === "SELL"
-      ? "Review your holdings and consider taking profits"
-      : "Stay alert for clearer market direction"
+        ? "Review your holdings and consider taking profits"
+        : "Stay alert for clearer market direction"
   }*
 
 ⚠️ _Always DYOR \\(Do Your Own Research\\) before making trading decisions_`;
@@ -146,7 +146,11 @@ ${formattedKeyFactors}
       title: `${directionEmoji} ${tokenSymbol} ${signalDecision!.signalType}`,
       message,
       priority: signalDecision!.riskLevel as "LOW" | "MEDIUM" | "HIGH",
-      tags: [tokenSymbol.toLowerCase(), signalDecision!.signalType.toLowerCase(), signalDecision!.direction.toLowerCase()],
+      tags: [
+        tokenSymbol.toLowerCase(),
+        signalDecision!.signalType.toLowerCase(),
+        signalDecision!.direction.toLowerCase(),
+      ],
       buttons: createPhantomButtons(tokenAddress, tokenSymbol),
     },
   };

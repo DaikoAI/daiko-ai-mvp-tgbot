@@ -1,5 +1,5 @@
 {
-  "name": "hono-langgraph-tgbot",
+  "name": "daikoai-mvp-tgbot",
   "scripts": {
     "dev": "wrangler dev --test-scheduled",
     "deploy": "wrangler deploy --minify",

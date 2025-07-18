@@ -542,7 +542,9 @@ export const updateUserTokenHoldings = async (
         }));
 
       if (tokenData.length === 0) {
-        logger.info(`No fungible tokens found for user ${userId} after filtering ${assets.length} assets, preserving existing holdings`);
+        logger.info(
+          `No fungible tokens found for user ${userId} after filtering ${assets.length} assets, preserving existing holdings`,
+        );
         return; // Don't update holdings if no fungible tokens found - preserve existing data
       }
 
@@ -562,12 +564,15 @@ export const updateUserTokenHoldings = async (
       logger.info(`updateUserTokenHoldings: Updating holdings for user ${userId} with ${userTokens.length} tokens`);
 
       // Validate that all tokens exist in the database before proceeding
-      const tokenAddresses = userTokens.map(t => t.address);
+      const tokenAddresses = userTokens.map((t) => t.address);
       const { tokens: tokensTable } = schema;
-      const existingTokens = await db.select({ address: tokensTable.address }).from(tokensTable).where(inArray(tokensTable.address, tokenAddresses));
-      const existingAddresses = new Set(existingTokens.map(t => t.address));
+      const existingTokens = await db
+        .select({ address: tokensTable.address })
+        .from(tokensTable)
+        .where(inArray(tokensTable.address, tokenAddresses));
+      const existingAddresses = new Set(existingTokens.map((t) => t.address));
 
-      const missingTokens = tokenAddresses.filter(addr => !existingAddresses.has(addr));
+      const missingTokens = tokenAddresses.filter((addr) => !existingAddresses.has(addr));
       if (missingTokens.length > 0) {
         logger.error(`updateUserTokenHoldings: Foreign key constraint would be violated - missing tokens in database`, {
           userId,
@@ -598,7 +603,7 @@ export const updateUserTokenHoldings = async (
         logger.error(`updateUserTokenHoldings: Failed to insert holdings for user ${userId}`, {
           error: insertError instanceof Error ? insertError.message : String(insertError),
           tokensCount: userTokens.length,
-          sampleTokens: userTokens.slice(0, 3).map(t => ({ address: t.address, symbol: t.symbol })),
+          sampleTokens: userTokens.slice(0, 3).map((t) => ({ address: t.address, symbol: t.symbol })),
         });
         throw insertError;
       }

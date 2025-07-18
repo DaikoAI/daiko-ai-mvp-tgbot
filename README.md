@@ -1,4 +1,4 @@
-# Hono LangGraph Telegram Bot
+# DaikoAI MVP Telegram Bot
 
 A Telegram bot built with Hono, LangGraph, and Drizzle ORM using Neon PostgreSQL database.
 
