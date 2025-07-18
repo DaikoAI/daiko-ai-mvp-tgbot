@@ -1,0 +1,52 @@
+{
+  "name": "hono-langgraph-tgbot",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "deploy": "wrangler deploy --minify",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "db:generate": "dotenvx run -f .dev.vars -- drizzle-kit generate",
+    "db:migrate": "dotenvx run -f .dev.vars -- drizzle-kit migrate",
+    "db:push": "dotenvx run -f .dev.vars -- drizzle-kit push",
+    "db:studio": "dotenvx run -f .dev.vars -- drizzle-kit studio",
+    "db:seed": "bun --env-file=.dev.vars run scripts/seed.ts",
+    "cron:run": "bun --env-file=.dev.vars run scripts/run-cron.ts",
+    "broadcast": "bun --env-file=.dev.vars run scripts/test-broadcast.ts",
+    "build": "tsup src/**/*.ts --dts --format esm",
+    "format": "prettier --write .",
+    "test": "dotenvx run -f .dev.vars -- vitest run",
+    "test:unit": "dotenvx run -f .dev.vars -- vitest run tests/unit",
+    "test:integration": "dotenvx run -f .dev.vars -- vitest run tests/integration"
+  },
+  "dependencies": {
+    "@langchain/community": "^0.3.48",
+    "@langchain/core": "^0.3.62",
+    "@langchain/langgraph": "^0.3.8",
+    "@langchain/openai": "^0.5.18",
+    "@neondatabase/serverless": "^1.0.1",
+    "@solana/web3.js": "^1.98.2",
+    "drizzle-orm": "^0.44.2",
+    "grammy": "^1.37.0",
+    "helius-sdk": "^1.5.1",
+    "hono": "^4.8.4",
+    "neverthrow": "^8.2.0",
+    "pg": "^8.16.3",
+    "technicalindicators": "^3.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250712.0",
+    "@types/pg": "^8.15.4",
+    "drizzle-kit": "^0.31.4",
+    "prettier": "^3.6.2",
+    "tsup": "^8.5.0",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.24.3"
+  },
+  "prettier": {
+    "semi": true,
+    "singleQuote": false,
+    "trailingComma": "all",
+    "printWidth": 120
+  },
+  "packageManager": "bun@1.2.18"
+}
