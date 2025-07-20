@@ -1,5 +1,7 @@
-import { Annotation } from "@langchain/langgraph";
+import { Annotation, MemorySaver } from "@langchain/langgraph";
 import type { TechnicalAnalysis } from "../../db/schema/technical-analysis";
+
+export const memory = new MemorySaver();
 
 /**
  * Signal Generator Graph State

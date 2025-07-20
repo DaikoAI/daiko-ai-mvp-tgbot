@@ -1,13 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { initTelegramGraph } from "../../../src/agents/telegram/graph";
 
 describe("Telegram Agent", () => {
   it("should initialize graph successfully", async () => {
     const userId = "test-user-123";
-    const { agent, config } = await initTelegramGraph(userId);
+    const { graph, config } = await initTelegramGraph(userId);
 
     // エージェントが正常に初期化されることを確認
-    expect(agent).toBeDefined();
+    expect(graph).toBeDefined();
     expect(config).toBeDefined();
     expect(config.configurable.thread_id).toBe(userId);
   });
@@ -22,12 +22,12 @@ describe("Telegram Agent", () => {
   });
 
   it("should handle graph compilation with all nodes", async () => {
-    const { agent } = await initTelegramGraph("test-user");
+    const { graph } = await initTelegramGraph("test-user");
 
     // グラフが適切にコンパイルされ、必要なメソッドが存在することを確認
-    expect(typeof agent.invoke).toBe("function");
-    expect(typeof agent.stream).toBe("function");
-    expect(agent).toBeDefined();
+    expect(typeof graph.invoke).toBe("function");
+    expect(typeof graph.stream).toBe("function");
+    expect(graph).toBeDefined();
   });
 
   it("should handle long user IDs", async () => {

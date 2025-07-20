@@ -5,34 +5,33 @@ import { createPhantomButtons } from "../../../src/lib/phantom";
 describe("Signal Agent", () => {
   it("should initialize graph successfully", async () => {
     const token = "SOL";
-    const { agent, config } = await initSignalGraph(token);
+    const { graph } = await initSignalGraph(token);
 
     // エージェントが正常に初期化されることを確認
-    expect(agent).toBeDefined();
-    expect(config).toBeDefined();
-    expect(config.configurable.thread_id).toBe("signal_SOL");
+    expect(graph).toBeDefined();
   });
 
   it("should create unique thread ID for different tokens", async () => {
     const tokens = ["BTC", "ETH", "SOL"];
 
     for (const token of tokens) {
-      const { config } = await initSignalGraph(token);
-      expect(config.configurable.thread_id).toBe(`signal_${token}`);
+      const { graph } = await initSignalGraph(token);
+      expect(graph).toBeDefined();
+      // Note: Signal graph doesn't use configurable thread_id like telegram graph
     }
   });
 
   it("should handle graph compilation", async () => {
-    const { agent } = await initSignalGraph("TEST");
+    const { graph } = await initSignalGraph("TEST");
 
     // グラフが適切にコンパイルされ、invokeメソッドが存在することを確認
-    expect(typeof agent.invoke).toBe("function");
-    expect(typeof agent.stream).toBe("function");
+    expect(typeof graph.invoke).toBe("function");
+    expect(typeof graph.stream).toBe("function");
   });
 
   it("should create signal", async () => {
-    const { agent } = await initSignalGraph("TEST");
-    const signal = await agent.invoke({
+    const { graph } = await initSignalGraph("TEST");
+    const signal = await graph.invoke({
       tokenAddress: "So11111111111111111111111111111111111111112",
       tokenSymbol: "SOL",
       currentPrice: 100,

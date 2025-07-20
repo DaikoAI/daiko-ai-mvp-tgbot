@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import { generateSignal } from "./agents/signal/graph";
 import { OHLCV_RETENTION } from "./constants/database";
 import { tokenOHLCV } from "./db";
 import { createPhantomButtons } from "./lib/phantom";
@@ -211,9 +212,6 @@ const processTokenSignal = async (analysis: any) => {
   }
 
   const currentPrice = parseFloat(latestOHLCV[0].close);
-
-  // Signal Generator実行
-  const { generateSignal } = await import("./agents/signal/graph");
 
   logger.info("Starting signal generation for token", {
     tokenAddress: analysis.token,

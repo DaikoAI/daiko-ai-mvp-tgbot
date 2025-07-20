@@ -1,4 +1,28 @@
+import { StructuredOutputParser } from "@langchain/core/output_parsers";
 import { PromptTemplate } from "@langchain/core/prompts";
+import { z } from "zod";
+
+/**
+ * Signal Analysis Schema
+ * LLMからの構造化出力を検証するためのZodスキーマ
+ */
+export const signalAnalysisSchema = z.object({
+  shouldGenerateSignal: z.boolean(),
+  signalType: z.string(),
+  direction: z.enum(["BUY", "SELL", "NEUTRAL"]),
+  confidence: z.number().min(0).max(1),
+  reasoning: z.string(),
+  keyFactors: z.array(z.string()).max(3),
+  riskLevel: z.enum(["LOW", "MEDIUM", "HIGH"]),
+  timeframe: z.enum(["SHORT", "MEDIUM", "LONG"]),
+  marketSentiment: z.string(),
+  priceExpectation: z.string(),
+});
+
+/**
+ * Structured Output Parser for Signal Analysis
+ */
+export const parser = StructuredOutputParser.fromZodSchema(signalAnalysisSchema);
 
 /**
  * Signal Analysis Prompts
@@ -31,6 +55,7 @@ export const signalAnalysisPrompt = new PromptTemplate({
     "signalCandidates",
     "confluenceScore",
     "riskLevel",
+    "formatInstructions",
   ],
   template: `You are a professional crypto trading signal analyst who specializes in translating complex technical analysis into beginner-friendly insights. Your task is to analyze technical indicators and determine if a trading signal should be generated, while explaining the market situation in simple terms.
 
@@ -82,18 +107,9 @@ Consider:
 3. Risk-reward potential for different trading timeframes
 4. Market volatility and its impact on trade safety
 
-Provide your analysis in the following structured format, using beginner-friendly language in the reasoning:
+{formatInstructions}
 
-- shouldGenerateSignal: boolean
-- signalType: string (specific signal type from candidates)
-- direction: BUY or SELL or NEUTRAL
-- confidence: number (0-1, minimum 0.6 for signal generation)
-- reasoning: string (explain in simple terms what the market is doing and why)
-- keyFactors: array of up to 3 most important factors (in plain language)
-- riskLevel: LOW or MEDIUM or HIGH
-- timeframe: SHORT or MEDIUM or LONG
-- marketSentiment: string (describe overall market mood for this token)
-- priceExpectation: string (what might happen to price and why)`,
+Provide your analysis based on the structured format requirements above, using beginner-friendly language in the reasoning.`,
 });
 
 /**

@@ -165,7 +165,7 @@ export const setupHandler = (bot: Bot) => {
       await saveChatMessage(userId, currentUserMessage);
 
       // initialize graph
-      const { agent, config } = await initTelegramGraph(userId);
+      const { graph: tgAgent, config } = await initTelegramGraph(userId);
       logger.debug("message handler", "Initialized Graph");
 
       // Load chat history from database
@@ -175,7 +175,7 @@ export const setupHandler = (bot: Bot) => {
       let latestAgentMessage: string | null = null;
 
       // send user message to agent
-      const stream = await agent.stream(
+      const stream = await tgAgent.stream(
         {
           messages: userChatHistory,
           userProfile: profile,
