@@ -531,11 +531,11 @@ export const updateUserTokenHoldings = async (
       // Fungible tokenのみを抽出してToken形式に変換
       const tokenData = assets
         .filter((asset) => {
-          return asset.interface === Interface.FUNGIBLE_ASSET || asset.interface === Interface.FUNGIBLE_TOKEN;
+          return asset.interface === Interface.FUNGIBLE_ASSET;
         })
         .map((asset) => ({
           address: asset.id,
-          symbol: asset.content?.metadata?.symbol || asset.token_info?.symbol || `NFT_${asset.id.substring(0, 8)}`,
+          symbol: asset.content?.metadata?.symbol || asset.token_info?.symbol || "",
           name: asset.content?.metadata?.name || "",
           decimals: asset.token_info?.decimals || 9,
           iconUrl: asset.content?.files?.[0]?.uri || "",

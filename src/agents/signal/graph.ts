@@ -12,7 +12,7 @@ import { applyStaticFilter } from "./nodes/static-filter";
  * テスト用に Signal Graph を初期化する関数
  * エージェントとconfigオブジェクトを返す
  */
-export const initSignalGraph = async (token: string) => {
+export const initSignalGraph = () => {
   const workflow = new StateGraph(signalGraphState)
     // ノード定義
     .addNode("static_filter", applyStaticFilter)
@@ -49,7 +49,7 @@ export const generateSignal = async (input: {
   });
 
   try {
-    const { graph } = await initSignalGraph(input.tokenAddress);
+    const { graph } = initSignalGraph();
 
     const result = await graph.invoke({
       tokenAddress: input.tokenAddress,
