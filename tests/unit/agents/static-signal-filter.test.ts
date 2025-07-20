@@ -186,13 +186,14 @@ describe("Static Signal Filter", () => {
 
   describe("Confluence and Risk Level Tests", () => {
     it("should require minimum confluence to proceed", () => {
-      // Single indicator - should not proceed
-      const singleIndicator = { ...baseAnalysis, rsi: "20" };
+      // Single indicator with lower confluence score - should not proceed
+      const singleIndicator = { ...baseAnalysis, rsi: "22" }; // RSI_OVERSOLD = 0.15 confluence
       const result = applyStaticSignalFilter("test", singleIndicator);
 
       expect(result.shouldProceed).toBe(false);
       expect(result.triggeredIndicators).toHaveLength(1);
-      expect(result.confluenceScore).toBeLessThan(0.2);
+      expect(result.confluenceScore).toBeLessThan(0.2); // 0.15 < 0.2
+      expect(result.confluenceScore).toBe(0.15); // Exact expected value
     });
 
     it("should proceed with sufficient confluence", () => {
