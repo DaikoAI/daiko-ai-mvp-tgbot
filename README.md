@@ -215,3 +215,14 @@ Pass the `CloudflareBindings` as generics when instantiation `Hono`:
 // src/index.ts
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 ```
+
+## Code Review
+
+This project uses [CodeRabbit](https://coderabbit.ai) for AI-powered code reviews. The configuration is optimized for this TypeScript Telegram bot project with specific focus on:
+
+- Security (API keys, input validation, Solana wallet handling)
+- Performance (Cloudflare Workers optimization, database efficiency)
+- Architecture (LangGraph patterns, error handling)
+- Integration robustness (webhooks, external APIs)
+
+See [docs/coderabbit-setup.md](docs/coderabbit-setup.md) for detailed setup and usage instructions.

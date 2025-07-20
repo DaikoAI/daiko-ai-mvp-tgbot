@@ -1,0 +1,145 @@
+# CodeRabbit Configuration for DaikoAI MVP Telegram Bot
+language: ja
+
+# Review configuration
+reviews:
+  # Profile-specific settings
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: true
+  review_status: true
+  collapse_empty_files: true
+  auto_review:
+    enabled: true
+    drafts: false
+
+  # Ignore patterns for files that don't need review
+  ignore:
+    - "**/*.md"
+    - "**/README.md"
+    - "**/*.lock"
+    - "**/*.json"
+    - "**/package-lock.json"
+    - "**/bun.lock"
+    - "migrations/**"
+    - "**/*.sql"
+    - "**/*.d.ts"
+    - "worker-configuration.d.ts"
+
+# Project-specific review instructions
+instructions: |
+  ## Project Context
+  This is a TypeScript-based Telegram bot project running on Cloudflare Workers with the following key technologies:
+
+  - **Framework**: Hono (Cloudflare Workers)
+  - **AI**: LangGraph for AI workflows
+  - **Database**: Drizzle ORM with Neon PostgreSQL
+  - **Bot**: Grammy (Telegram Bot API)
+  - **Blockchain**: Solana web3.js integration
+  - **Analysis**: Technical indicators for crypto trading
+
+  ## Review Focus Areas
+  Please focus your reviews on these critical aspects:
+
+  ### 🔒 Security
+  - API key handling and environment variable usage
+  - Input validation for user data (especially Telegram messages)
+  - SQL injection prevention in Drizzle queries
+  - Solana wallet address validation
+  - Rate limiting and abuse prevention
+
+  ### ⚡ Performance
+  - Cloudflare Workers edge performance optimizations
+  - Database query efficiency (N+1 problems)
+  - Memory usage in Workers environment
+  - Async/await patterns and promise handling
+  - Caching strategies for API responses
+
+  ### 🏗️ Architecture
+  - Proper separation of concerns between agents/nodes
+  - LangGraph state management and flow logic
+  - Error handling and recovery patterns
+  - Type safety throughout the codebase
+  - Consistent folder structure adherence
+
+  ### 🔗 Integration Points
+  - Telegram webhook handling robustness
+  - External API error handling (Helius, Vybe, Jupiter)
+  - Database transaction management
+  - Cron job reliability and monitoring
+
+  ### 📝 Code Quality
+  - TypeScript type definitions completeness
+  - Proper error types using neverthrow Result patterns
+  - Logging consistency using the project logger
+  - Test coverage for critical business logic
+
+  ## What to Ignore
+  - Minor formatting issues (handled by prettier)
+  - Missing JSDoc unless for public APIs
+  - File naming conventions (already established)
+  - Console.log usage (project uses custom logger)
+
+  ## Response Style
+  - Provide responses in Japanese
+  - Focus on actionable feedback with code examples
+  - Prioritize security and performance over style
+  - Be concise but thorough for critical issues
+  - Consider the Cloudflare Workers runtime constraints
+
+# Path-specific instructions for specialized code areas
+path_instructions:
+  - path: "src/agents/**"
+    instructions: |
+      Focus on LangGraph state management, node composition, and AI workflow logic.
+      Ensure proper error handling and state transitions.
+
+  - path: "src/db/**"
+    instructions: |
+      Review Drizzle schema definitions, relations, and query optimization.
+      Check for proper indexing and migration safety.
+
+  - path: "src/lib/**"
+    instructions: |
+      Examine third-party integrations for error handling, rate limiting, and data validation.
+      Pay special attention to Solana and crypto-related logic.
+
+  - path: "src/routes/**"
+    instructions: |
+      Focus on API endpoint security, validation, authentication, and proper HTTP status codes.
+      Ensure webhook handling is robust and idempotent.
+
+  - path: "src/cron.ts"
+    instructions: |
+      Review for reliability, error handling, and proper cleanup logic.
+      Ensure data integrity during batch operations.
+
+  - path: "tests/**"
+    instructions: |
+      Ensure comprehensive test coverage for critical business logic.
+      Check for proper mocking of external dependencies.
+
+# Custom review rules
+rules:
+  - name: "Async Error Handling"
+    description: "Check for proper async/await error handling patterns"
+    pattern: "async\\s+function.*\\{[^}]*(?!try|catch)[^}]*\\}"
+    message: "非同期関数ではtry-catchまたはResult型を使用してエラーハンドリングを行ってください"
+
+  - name: "Console.log Usage"
+    description: "Discourage console.log in favor of the project logger"
+    pattern: "console\\.(log|warn|error)"
+    message: "console.logの代わりにprojectのloggerを使用してください(utils/logger.ts)"
+
+  - name: "Direct Database Access"
+    description: "Ensure database access goes through proper utilities"
+    pattern: "import.*drizzle.*from.*(?!\\.\\./utils/db)"
+    message: "データベースアクセスはutils/db.tsを通して行ってください"
+
+# Chat summary settings
+chat_summary:
+  enabled: true
+
+# Early access features
+early_access: true
