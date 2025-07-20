@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { createPhantomButtons } from "../../../lib/phantom";
 import { logger } from "../../../utils/logger";
+import { gpt4oMini } from "../../model";
 import type { SignalGraphState } from "../graph-state";
-import { createSignalModel } from "../model";
 import { signalFormattingPrompt } from "../prompts/signal-analysis";
 
 /**
@@ -244,7 +244,6 @@ export const formatSignal = async (state: SignalGraphState): Promise<Partial<Sig
     }
 
     // LLMモデルの作成
-    const model = createSignalModel();
 
     // プロンプト変数の準備と検証
     const promptVariables = {
@@ -317,7 +316,7 @@ export const formatSignal = async (state: SignalGraphState): Promise<Partial<Sig
     });
 
     // LLMによるシグナルフォーマット
-    const chain = signalFormattingPrompt.pipe(model.withStructuredOutput(SignalFormattingSchema));
+    const chain = signalFormattingPrompt.pipe(gpt4oMini.withStructuredOutput(SignalFormattingSchema));
 
     logger.info("About to invoke LLM chain", {
       tokenAddress: state.tokenAddress,

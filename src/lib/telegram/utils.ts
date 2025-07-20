@@ -260,6 +260,7 @@ export const broadcastMessage = async (
     excludeUserIds?: string[];
     batchSize?: number;
     batchDelayMs?: number;
+    buttons?: TelegramButton[];
   },
 ): Promise<Result<BroadcastResult, TelegramError>> => {
   try {

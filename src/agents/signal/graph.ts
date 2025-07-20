@@ -1,22 +1,18 @@
-import { StateGraph, START, END } from "@langchain/langgraph";
+import { START, StateGraph } from "@langchain/langgraph";
+import { logger } from "../../utils/logger";
+import { formatSignalRouter, llmAnalysisRouter, staticFilterRouter } from "./graph-route";
 import { signalGraphState } from "./graph-state";
-import { staticFilterRouter, llmAnalysisRouter, formatSignalRouter } from "./graph-route";
-import { applyStaticFilter } from "./nodes/static-filter";
 import { analyzeLLMSignal } from "./nodes/llm-analysis";
 import { formatSignal } from "./nodes/signal-formatter";
-import { logger } from "../../utils/logger";
+import { applyStaticFilter } from "./nodes/static-filter";
 
 /**
- * Signal Generator Graph
+ * Initialize Signal Graph
  *
- * シグナル生成プロセスのLangGraphワークフロー
- *
- * Flow:
- * 1. Static Filter: 事前フィルタでLLM呼び出しの必要性を判定
- * 2. LLM Analysis: 複合的な指標分析でシグナル生成判定
- * 3. Format Signal: ユーザー向けメッセージ整形
+ * テスト用に Signal Graph を初期化する関数
+ * エージェントとconfigオブジェクトを返す
  */
-export const createSignalGeneratorGraph = () => {
+export const initSignalGraph = async (token: string) => {
   const workflow = new StateGraph(signalGraphState)
     // ノード定義
     .addNode("static_filter", applyStaticFilter)
@@ -29,24 +25,9 @@ export const createSignalGeneratorGraph = () => {
     .addConditionalEdges("llm_analysis", llmAnalysisRouter)
     .addConditionalEdges("format_signal", formatSignalRouter);
 
-  return workflow.compile();
-};
+  const graph = workflow.compile();
 
-/**
- * Initialize Signal Graph
- *
- * テスト用に Signal Graph を初期化する関数
- * エージェントとconfigオブジェクトを返す
- */
-export const initSignalGraph = async (token: string) => {
-  const agent = createSignalGeneratorGraph();
-  const config = {
-    configurable: {
-      thread_id: `signal_${token}`,
-    },
-  };
-
-  return { agent, config };
+  return { graph };
 };
 
 /**
@@ -68,7 +49,7 @@ export const generateSignal = async (input: {
   });
 
   try {
-    const graph = createSignalGeneratorGraph();
+    const { graph } = await initSignalGraph(input.tokenAddress);
 
     const result = await graph.invoke({
       tokenAddress: input.tokenAddress,

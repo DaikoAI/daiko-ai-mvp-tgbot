@@ -1,0 +1,171 @@
+# CodeRabbit Configuration for DaikoAI MVP Telegram Bot
+language: ja
+
+# Review configuration
+reviews:
+  # Profile-specific settings
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_placeholder: "@coderabbitai summary"
+  poem: true
+  review_status: true
+  collapse_walkthrough: true
+  changed_files_summary: true
+  sequence_diagrams: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  suggested_labels: true
+  auto_apply_labels: false
+  suggested_reviewers: true
+  auto_assign_reviewers: false
+
+  # Auto review settings
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+    ignore_title_keywords: []
+    labels: []
+    base_branches: []
+
+  # Path filters for files to include/exclude in review
+  path_filters:
+    - "!**/*.md"
+    - "!**/*.lock"
+    - "!**/*.json"
+    - "!migrations/**"
+    - "!**/*.sql"
+    - "!**/*.d.ts"
+    - "!worker-configuration.d.ts"
+    - "src/**"
+    - "tests/**"
+
+  # Path-specific instructions for specialized code areas
+  path_instructions:
+    - path: "src/agents/**"
+      instructions: |
+        Focus on LangGraph state management, node composition, and AI workflow logic.
+        Ensure proper error handling and state transitions.
+
+    - path: "src/db/**"
+      instructions: |
+        Review Drizzle schema definitions, relations, and query optimization.
+        Check for proper indexing and migration safety.
+
+    - path: "src/lib/**"
+      instructions: |
+        Examine third-party integrations for error handling, rate limiting, and data validation.
+        Pay special attention to Solana and crypto-related logic.
+
+    - path: "src/routes/**"
+      instructions: |
+        Focus on API endpoint security, validation, authentication, and proper HTTP status codes.
+        Ensure webhook handling is robust and idempotent.
+
+    - path: "src/cron.ts"
+      instructions: |
+        Review for reliability, error handling, and proper cleanup logic.
+        Ensure data integrity during batch operations.
+
+    - path: "tests/**"
+      instructions: |
+        Ensure comprehensive test coverage for critical business logic.
+        Check for proper mocking of external dependencies.
+
+  # Labeling instructions for automatic label suggestions
+  labeling_instructions:
+    - label: "security"
+      instructions: "Apply when changes involve API key handling, input validation, or security-related code"
+    - label: "performance"
+      instructions: "Apply when changes optimize database queries, memory usage, or Cloudflare Workers performance"
+    - label: "ai/llm"
+      instructions: "Apply when changes involve LangGraph workflows, AI agents, or OpenAI integrations"
+    - label: "blockchain"
+      instructions: "Apply when changes involve Solana integration, wallet handling, or crypto-related features"
+    - label: "telegram"
+      instructions: "Apply when changes involve Telegram bot functionality, Grammy, or webhook handling"
+    - label: "database"
+      instructions: "Apply when changes involve Drizzle ORM, database schema, or query modifications"
+
+  # Pre-merge checks
+  pre_merge_checks:
+    title:
+      mode: warning
+      requirements: "Title should be concise and descriptive, following conventional commit format when possible"
+    description:
+      mode: warning
+
+  # Finishing touches
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: true
+
+# Global instructions for all reviews
+instructions: |
+  ## Project Context
+  This is a TypeScript-based Telegram bot project running on Cloudflare Workers with the following key technologies:
+
+  - **Framework**: Hono (Cloudflare Workers)
+  - **AI**: LangGraph for AI workflows
+  - **Database**: Drizzle ORM with Neon PostgreSQL
+  - **Bot**: Grammy (Telegram Bot API)
+  - **Blockchain**: Solana web3.js integration
+  - **Analysis**: Technical indicators for crypto trading
+
+  ## Review Focus Areas
+  Please focus your reviews on these critical aspects:
+
+  ### 🔒 Security
+  - API key handling and environment variable usage
+  - Input validation for user data (especially Telegram messages)
+  - SQL injection prevention in Drizzle queries
+  - Solana wallet address validation
+  - Rate limiting and abuse prevention
+
+  ### ⚡ Performance
+  - Cloudflare Workers edge performance optimizations
+  - Database query efficiency (N+1 problems)
+  - Memory usage in Workers environment
+  - Async/await patterns and promise handling
+  - Caching strategies for API responses
+
+  ### 🏗️ Architecture
+  - Proper separation of concerns between agents/nodes
+  - LangGraph state management and flow logic
+  - Error handling and recovery patterns
+  - Type safety throughout the codebase
+  - Consistent folder structure adherence
+
+  ### 🔗 Integration Points
+  - Telegram webhook handling robustness
+  - External API error handling (Helius, Vybe, Jupiter)
+  - Database transaction management
+  - Cron job reliability and monitoring
+
+  ### 📝 Code Quality
+  - TypeScript type definitions completeness
+  - Proper error types using neverthrow Result patterns
+  - Logging consistency using the project logger
+  - Test coverage for critical business logic
+
+  ## What to Ignore
+  - Minor formatting issues (handled by prettier)
+  - Missing JSDoc unless for public APIs
+  - File naming conventions (already established)
+
+  ## Response Style
+  - Provide responses in Japanese
+  - Focus on actionable feedback with code examples
+  - Prioritize security and performance over style
+  - Be concise but thorough for critical issues
+  - Consider the Cloudflare Workers runtime constraints
+
+# Tone instructions for reviews
+tone_instructions: "Be constructive and helpful. Focus on security, performance, and maintainability. Provide specific examples and suggestions for improvement."
+
+# Early access features
+early_access: true
