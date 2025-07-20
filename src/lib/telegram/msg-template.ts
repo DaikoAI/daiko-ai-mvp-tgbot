@@ -1,3 +1,5 @@
+import { escapeMarkdownV2 } from "../../utils";
+
 /**
  * Telegram message templates
  */
@@ -57,11 +59,6 @@ export const formatSignalMessage = (
   };
 
   const confidencePercentage = signal.confidence ? Math.round(parseFloat(signal.confidence) * 100) : null;
-
-  // Escape function for MarkdownV2
-  const escapeMarkdownV2 = (text: string): string => {
-    return text.replace(/[_*\[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
-  };
 
   const priceInfo = currentPrice ? `📊 *Current Price*\\: $${currentPrice.toFixed(6)}\n` : "";
 

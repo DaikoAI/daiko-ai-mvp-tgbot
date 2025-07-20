@@ -53,3 +53,8 @@ export const sleep = (ms: number): Promise<void> => {
 export const convertToString = (value: number | undefined): string | null => {
   return value !== undefined ? value.toString() : null;
 };
+
+// Escape function for MarkdownV2
+export const escapeMarkdownV2 = (text: string): string => {
+  return text.replace(/[_*\[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
+};
