@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { broadcastToAllUsers } from "../src/lib/telegram/utils";
+import { broadcastMessage } from "../src/lib/telegram/utils";
 import { logger } from "../src/utils/logger";
 
 async function main() {
@@ -10,19 +10,60 @@ async function main() {
   const startTime = Date.now();
 
   try {
-    const testMessage = `🧪 **Test Message**
+    // 包括的なMarkdownV2テストメッセージ（手動エスケープ適用）
+    const testMessage = `🧪 *Test Message \\- Markdown Features*
 
-This is a test of the broadcast functionality.
-Sent at: ${new Date().toLocaleString("en-US", { timeZone: "Asia/Tokyo" })}
+This is a comprehensive test of Telegram's MarkdownV2 capabilities\\.
 
-If you receive this message, the broadcast feature is working correctly ✅`;
+📊 *Market Analysis Example*
+• Current Price\\: $0\\.001234
+• 24h Change\\: \\+15\\.67%
+• Volume\\: $1,234,567
 
-    console.log("📤 Sending test message to all users...");
-    logger.info("📤 Sending test message to all users");
+🎯 _Technical Indicators_\\:
+\`RSI\`\\: 72\\.5 \\(Overbought\\)
+\`MACD\`\\: Bullish divergence detected
+\`Support\`\\: $0\\.001100
+\`Resistance\`\\: $0\\.001500
 
-    const result = await broadcastToAllUsers(testMessage, {
-      parse_mode: "Markdown",
+📈 *Signal Summary*
+Direction\\: *BUY* 🚀
+Confidence\\: *85%*
+Risk Level\\: _MEDIUM_ ⚖️
+
+\`\`\`
+Entry: $0.001200-$0.001250
+Target 1: $0.001400 (+16%)
+Target 2: $0.001600 (+33%)
+Stop Loss: $0.001050 (-12%)
+\`\`\`
+
+🔗 *Useful Links*\\:
+• [DexScreener](https://dexscreener\\.com)
+• [Jupiter Swap](https://jup\\.ag)
+• [Official Website](https://daiko\\.ai)
+
+⚠️ _Always DYOR \\(Do Your Own Research\\)_
+
+📅 Sent at\\: ${new Date().toLocaleString("en-US", { timeZone: "Asia/Tokyo" }).replace(/[.,:()]/g, "\\$&")}
+
+If you receive this message with proper formatting, all Markdown features are working correctly ✅`;
+
+    // テスト用ボタン
+    const testButtons = [
+      { text: "🚀 Buy on Jupiter", url: "https://jup.ag" },
+      { text: "📊 View Chart", url: "https://dexscreener.com" },
+      { text: "🔍 Token Info", url: "https://solscan.io" },
+      { text: "📰 Latest News", url: "https://daiko.ai" },
+    ];
+
+    console.log("📤 Sending comprehensive test message to all users...");
+    logger.info("📤 Sending comprehensive test message with buttons");
+
+    const result = await broadcastMessage(testMessage, {
+      parse_mode: "MarkdownV2",
       disable_notification: false,
+      buttons: testButtons,
     });
 
     const endTime = Date.now();

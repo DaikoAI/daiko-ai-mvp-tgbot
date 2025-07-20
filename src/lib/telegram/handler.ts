@@ -1,23 +1,22 @@
+import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import type { Bot, Context } from "grammy";
 import { initTelegramGraph } from "../../agents/telegram/graph";
-import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import type { NewToken } from "../../db";
 import type { StreamChunk } from "../../types";
-import { logger } from "../../utils/logger";
 import { SetupStep } from "../../types";
-import { proceedToNextStep } from "./command";
-import { isValidSolanaAddress } from "../../utils/solana";
-import { dumpTokenUsage, isAnalyzerMessage, isGeneralistMessage } from "../../utils";
+import { createTimeoutPromise, dumpTokenUsage, isAnalyzerMessage, isGeneralistMessage } from "../../utils";
 import {
-  getUserProfile,
-  updateUserProfile,
-  getChatHistory,
-  saveChatMessage,
   createTokens,
+  getChatHistory,
+  getUserProfile,
+  saveChatMessage,
+  updateUserProfile,
   updateUserTokenHoldings,
 } from "../../utils/db";
-import { createTimeoutPromise } from "../../utils";
+import { logger } from "../../utils/logger";
+import { isValidSolanaAddress } from "../../utils/solana";
 import { getAssetsByOwner } from "../helius";
-import type { NewToken } from "../../db";
+import { proceedToNextStep } from "./command";
 
 export const setupHandler = (bot: Bot) => {
   bot.on("message:text", async (ctx: Context) => {
@@ -44,8 +43,8 @@ export const setupHandler = (bot: Bot) => {
         switch (waitingFor) {
           case SetupStep.WALLET_ADDRESS: {
             if (!isValidSolanaAddress(text)) {
-              await ctx.reply("Please enter a valid wallet address.", {
-                parse_mode: "Markdown",
+              await ctx.reply("Please enter a valid wallet address\\.", {
+                parse_mode: "MarkdownV2",
               });
               return;
             }
@@ -58,8 +57,8 @@ export const setupHandler = (bot: Bot) => {
               waitingForInput: null,
             });
 
-            await ctx.reply(`Wallet address set to ${text}!`, {
-              parse_mode: "Markdown",
+            await ctx.reply(`Wallet address set to ${text.replace(/[_*\[\]()~`>#+\-=|{}.!\\]/g, "\\$&")}\\!`, {
+              parse_mode: "MarkdownV2",
             });
 
             const assets = await getAssetsByOwner(text);
@@ -214,7 +213,7 @@ export const setupHandler = (bot: Bot) => {
           if (!ctx.chat?.id) return;
           await ctx.api.deleteMessage(ctx.chat.id, thinkingMessage.message_id);
           await ctx.reply(latestAgentMessage, {
-            parse_mode: "Markdown",
+            parse_mode: "MarkdownV2",
           });
 
           // Save AI message to database
