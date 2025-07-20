@@ -1,3 +1,4 @@
+import { DynamicStructuredTool } from "@langchain/core/tools";
 import { BaseCheckpointSaver } from "@langchain/langgraph";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { MultiServerMCPClient } from "@langchain/mcp-adapters";
@@ -12,7 +13,7 @@ import { sequentialThinking } from "./tools/mcp-server";
  * Can be extended with additional servers as needed
  */
 let mcpClient: MultiServerMCPClient | null = null;
-let mcpTools: any[] = [];
+let mcpTools: DynamicStructuredTool[] = [];
 
 /**
  * Initialize MCP client with predefined server configurations
@@ -48,14 +49,19 @@ export const initMCPClient = async (): Promise<void> => {
   }
 };
 
+let initializationPromise: Promise<void> | null = null;
 /**
  * Get available MCP tools
  * Initialize client if not already done
  */
 export const getMCPTools = async (): Promise<any[]> => {
-  if (!mcpClient) {
-    await initMCPClient();
+  if (!initializationPromise) {
+    initializationPromise = initMCPClient().finally(() => {
+      initializationPromise = null;
+    });
+    await initializationPromise;
   }
+
   return mcpTools;
 };
 
