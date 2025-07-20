@@ -217,7 +217,7 @@ export const setupHandler = (bot: Bot) => {
         // Process the final response
         if (latestAgentMessage) {
           if (!ctx.chat?.id) return;
-          // await ctx.api.deleteMessage(ctx.chat.id, thinkingMessage.message_id);
+          await ctx.api.deleteMessage(ctx.chat.id, thinkingMessage.message_id);
           await ctx.reply(latestAgentMessage, {
             parse_mode: "MarkdownV2",
           });
