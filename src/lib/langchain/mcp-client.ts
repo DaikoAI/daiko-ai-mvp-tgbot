@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from "@langchain/core/tools";
+import { DynamicStructuredTool, Tool } from "@langchain/core/tools";
 import { BaseCheckpointSaver } from "@langchain/langgraph";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { MultiServerMCPClient } from "@langchain/mcp-adapters";
@@ -102,8 +102,8 @@ export const createReactAgentWithMCP = async ({
   includeMCP = true,
 }: {
   llm: ChatOpenAI;
-  tools?: any[];
-  prompt: any;
+  tools?: Tool[];
+  prompt: string;
   checkpointSaver?: BaseCheckpointSaver;
   includeMCP?: boolean;
 }) => {
