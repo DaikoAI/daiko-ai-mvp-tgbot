@@ -1,6 +1,6 @@
 import { TavilySearchResults } from "@langchain/community/tools/tavily_search";
 import type { Tool } from "@langchain/core/tools";
-import { createReactAgentWithMCP } from "../../../lib/mcp-client";
+import { createReactAgentWithMCP } from "../../../lib/langchain/mcp-client";
 import { gpt4o } from "../../model";
 import { memory, type graphState } from "../graph-state";
 import { generalPrompt } from "../prompts/general";

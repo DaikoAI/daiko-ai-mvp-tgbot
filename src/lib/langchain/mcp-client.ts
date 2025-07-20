@@ -2,7 +2,8 @@ import { BaseCheckpointSaver } from "@langchain/langgraph";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { MultiServerMCPClient } from "@langchain/mcp-adapters";
 import { ChatOpenAI } from "@langchain/openai";
-import { logger } from "../utils/logger";
+import { logger } from "../../utils/logger";
+import { sequentialThinking } from "./tools/mcp-server";
 
 /**
  * MCP Client Configuration
@@ -29,28 +30,7 @@ export const initMCPClient = async (): Promise<void> => {
       additionalToolNamePrefix: "",
       useStandardContentBlocks: true,
       mcpServers: {
-        // Math computation server
-        math: {
-          transport: "stdio",
-          command: "npx",
-          args: ["-y", "@modelcontextprotocol/server-math"],
-          restart: {
-            enabled: true,
-            maxAttempts: 3,
-            delayMs: 1000,
-          },
-        },
-        // Filesystem operations
-        filesystem: {
-          transport: "stdio",
-          command: "npx",
-          args: ["-y", "@modelcontextprotocol/server-filesystem"],
-          restart: {
-            enabled: true,
-            maxAttempts: 3,
-            delayMs: 1000,
-          },
-        },
+        sequentialThinking,
       },
     });
 
