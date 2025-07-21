@@ -104,13 +104,13 @@ export const getUserIds = async (excludeUserIds: string[] = []): Promise<string[
   return allUserIds.map((u) => u.userId);
 };
 
-export const getUserProfile = async (userId: string): Promise<User | null> => {
+export const getUserProfile = async (userId: string) => {
   const db = getDB();
   const [user] = await db.select().from(users).where(eq(users.userId, userId));
   return user;
 };
 
-export const updateUserProfile = async (userId: string, profile: Partial<NewUser>): Promise<User | null> => {
+export const updateUserProfile = async (userId: string, profile: Partial<NewUser>) => {
   const db = getDB();
   const currentUser = await getUserProfile(userId);
 

@@ -25,6 +25,7 @@ import {
   syncAllUserTokenHoldings,
 } from "./utils/db";
 import { logger } from "./utils/logger";
+import { safeParseFloat } from "./utils/number";
 
 // every 5 minutes
 export const runCronTasks = async () => {
@@ -377,13 +378,6 @@ const generateSignalTask = async () => {
     // 各トークンに対してシグナル生成を並列実行
     const signalPromises = unprocessedAnalyses.map(async (analysis) => {
       try {
-        // Helper function to safely parse numeric values
-        const safeParseFloat = (value: string | null | undefined, fallback?: number): number | undefined => {
-          if (value === null || value === undefined || value === "") return fallback;
-          const parsed = parseFloat(value);
-          return !isNaN(parsed) && Number.isFinite(parsed) ? parsed : fallback;
-        };
-
         // Convert technical analysis to required format with robust validation
         const technicalAnalysisResult = {
           atrPercent: safeParseFloat(analysis.atr_percent),

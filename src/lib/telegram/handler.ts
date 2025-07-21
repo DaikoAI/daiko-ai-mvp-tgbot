@@ -1,7 +1,7 @@
-import { AIMessage, HumanMessage } from "@langchain/core/messages";
+import { AIMessage, BaseMessage, HumanMessage } from "@langchain/core/messages";
 import { Context } from "grammy";
-import { initTelegramGraph } from "../../agents/telegram/graph";
-import type { NewToken } from "../../db";
+import { initTelegramGraph, type TelegramGraph } from "../../agents/telegram/graph";
+import type { NewToken, User } from "../../db";
 import { getAssetsByOwner } from "../../lib/helius";
 import { SetupStep } from "../../types";
 import { createTimeoutPromise, dumpTokenUsage, isGeneralistMessage } from "../../utils";
@@ -86,7 +86,12 @@ const handleSetupInput = async (
 /**
  * Process agent response stream
  */
-const processAgentStream = async (tgAgent: any, config: any, userChatHistory: any, profile: any) => {
+const processAgentStream = async (
+  tgAgent: TelegramGraph["graph"],
+  config: { configurable: { thread_id: string } },
+  userChatHistory: BaseMessage[],
+  profile: User,
+) => {
   const stream = await tgAgent.stream(
     {
       messages: userChatHistory,

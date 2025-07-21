@@ -6,7 +6,7 @@ import { dataFetchNode } from "./nodes/data-fetch";
 import { generalistNode } from "./nodes/general";
 import { managerNode } from "./nodes/manager";
 
-export async function initTelegramGraph(userId: string) {
+export function initTelegramGraph(userId: string) {
   try {
     const workflow = new StateGraph(graphState)
       // nodes
@@ -29,3 +29,5 @@ export async function initTelegramGraph(userId: string) {
     throw error;
   }
 }
+
+export type TelegramGraph = ReturnType<typeof initTelegramGraph>;
