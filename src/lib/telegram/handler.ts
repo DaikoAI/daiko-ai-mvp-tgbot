@@ -68,6 +68,8 @@ const handleSetupInput = async (
         await ctx.reply(
           "⚠️ Wallet address was set successfully, but there was an issue fetching your token holdings. This may be temporary - please try the setup again later.",
         );
+        // エラー発生時はセットアップを中断し、再試行を促す
+        return;
       }
 
       // Proceed to the next step
