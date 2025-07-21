@@ -4,13 +4,7 @@ import { initTelegramGraph } from "../../agents/telegram/graph";
 import type { NewToken } from "../../db";
 import type { StreamChunk } from "../../types";
 import { SetupStep } from "../../types";
-import {
-  createTimeoutPromise,
-  dumpTokenUsage,
-  escapeMarkdownV2,
-  isAnalyzerMessage,
-  isGeneralistMessage,
-} from "../../utils";
+import { createTimeoutPromise, dumpTokenUsage, isGeneralistMessage } from "../../utils";
 import {
   createTokens,
   getChatHistory,
@@ -196,17 +190,10 @@ export const setupHandler = (bot: Bot) => {
           stream,
           createTimeoutPromise(),
         ])) as AsyncIterable<StreamChunk>) {
-          // Get analyzer or generalist message from chunk
-          if (isAnalyzerMessage(chunk)) {
-            const lastIndex = chunk.analyzer.messages.length - 1;
-            if (chunk.analyzer.messages[lastIndex]?.content) {
-              latestAgentMessage = escapeMarkdownV2(String(chunk.analyzer.messages[lastIndex].content));
-              logger.debug("message handler", "Got analyzer message", latestAgentMessage);
-            }
-          } else if (isGeneralistMessage(chunk)) {
+          if (isGeneralistMessage(chunk)) {
             const lastIndex = chunk.generalist.messages.length - 1;
             if (chunk.generalist.messages[lastIndex]?.content) {
-              latestAgentMessage = escapeMarkdownV2(String(chunk.generalist.messages[lastIndex].content));
+              latestAgentMessage = String(chunk.generalist.messages[lastIndex].content);
               logger.debug("message handler", "Got generalist message", latestAgentMessage);
             }
           }

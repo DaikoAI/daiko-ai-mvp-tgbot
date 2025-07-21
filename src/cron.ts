@@ -344,19 +344,17 @@ const sendSignalToTelegram = async () => {
 
         if (holdingUsers.length === 0) {
           logger.info(`No users holding token, skipping signal ${signalData.id}`);
-          return;
+          return { signalId: signalData.id, skipped: true };
         }
 
         logger.info(`Sending signal ${signalData.id} to ${holdingUsers.length} users holding token`);
 
         // Extract buttons from signal value or generate new ones
-
         let buttons: { text: string; url: string }[] = [];
 
         // Get token symbol for button generation (if buttons are empty, regenerate them)
         if (buttons.length === 0) {
           const tokenSymbol = await getTokenSymbol(signalData.token);
-
           buttons = createPhantomButtons(signalData.token, tokenSymbol || undefined);
         }
 
@@ -370,15 +368,30 @@ const sendSignalToTelegram = async () => {
         );
 
         if (!result.isOk()) {
-          logger.error(`Failed to broadcast signal ${signalData.id}`, {
+          logger.error(`Failed to send signal ${signalData.id} due to system error`, {
             error: result.error,
             signalId: signalData.id,
             tokenAddress: signalData.token,
           });
-          return;
+          return { signalId: signalData.id, success: false, systemError: true, stats: null };
         }
 
         const stats = result.value;
+
+        // Check if any messages were successfully delivered
+        if (stats.successCount === 0) {
+          logger.error(`Signal ${signalData.id} failed to deliver to any users`, {
+            signalId: signalData.id,
+            tokenAddress: signalData.token,
+            totalUsers: stats.totalUsers,
+            failureCount: stats.failureCount,
+            failedUserIds: stats.failedUsers,
+            firstError: stats.results.find((r) => !r.success)?.error,
+          });
+          return { signalId: signalData.id, success: false, systemError: false, stats };
+        }
+
+        // Log success with detailed stats
         logger.info(`Signal ${signalData.id} broadcast completed`, {
           signalId: signalData.id,
           tokenAddress: signalData.token,
@@ -388,23 +401,64 @@ const sendSignalToTelegram = async () => {
           successRate: stats.totalUsers > 0 ? ((stats.successCount / stats.totalUsers) * 100).toFixed(1) + "%" : "0%",
         });
 
+        // Log partial failures if they exist
         if (stats.failureCount > 0) {
-          logger.warn(`Signal ${signalData.id} had some delivery failures`, {
+          logger.warn(`Signal ${signalData.id} had ${stats.failureCount} delivery failures`, {
+            signalId: signalData.id,
             failedUserIds: stats.failedUsers,
+            sampleErrors: stats.results
+              .filter((r) => !r.success)
+              .slice(0, 3)
+              .map((r) => r.error),
           });
         }
+
+        return { signalId: signalData.id, success: true, systemError: false, stats };
       } catch (error) {
         logger.error(`Error processing signal ${signalData.id}:`, {
           error: error instanceof Error ? error.message : String(error),
           signalId: signalData.id,
         });
+        return { signalId: signalData.id, success: false, systemError: true, stats: null };
       }
     });
 
     // 全ての処理を並列実行
-    await Promise.allSettled(signalPromises);
+    const results = await Promise.allSettled(signalPromises);
 
-    logger.info("Signal-to-telegram task completed");
+    // 結果を集計
+    const processedResults = results
+      .filter(
+        (r): r is PromiseFulfilledResult<NonNullable<Awaited<(typeof signalPromises)[0]>>> =>
+          r.status === "fulfilled" && r.value !== undefined,
+      )
+      .map((r) => r.value);
+
+    const totalSignals = processedResults.length;
+    const skippedSignals = processedResults.filter((r) => "skipped" in r && r.skipped).length;
+    const successfulSignals = processedResults.filter((r) => "success" in r && r.success).length;
+    const failedSignals = processedResults.filter((r) => "success" in r && !r.success).length;
+    const systemErrors = processedResults.filter((r) => "systemError" in r && r.systemError).length;
+
+    // 詳細な統計情報をログ出力
+    logger.info("Signal-to-telegram task completed with detailed statistics", {
+      totalSignals,
+      skippedSignals: skippedSignals,
+      successfulSignals,
+      failedSignals,
+      systemErrors,
+      successRate:
+        totalSignals > 0 ? ((successfulSignals / (totalSignals - skippedSignals)) * 100).toFixed(1) + "%" : "0%",
+    });
+
+    // エラーがある場合は警告を出力
+    if (failedSignals > 0 || systemErrors > 0) {
+      logger.warn(`Signal delivery had issues`, {
+        failedSignals,
+        systemErrors,
+        failedSignalIds: processedResults.filter((r) => "success" in r && !r.success).map((r) => r.signalId),
+      });
+    }
   } catch (error) {
     logger.error("Signal-to-telegram task failed:", {
       error: error instanceof Error ? error.message : String(error),
