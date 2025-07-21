@@ -97,7 +97,13 @@ const processAgentStream = async (tgAgent: any, config: any, userChatHistory: an
 
   let latestAgentMessage: string | null = null;
 
-  for await (const chunk of (await Promise.race([stream, createTimeoutPromise()])) as AsyncIterable<any>) {
+  const timeoutMs = 30000; // 30秒のタイムアウト
+  const streamWithTimeout = await Promise.race([
+    Promise.resolve(stream),
+    createTimeoutPromise(timeoutMs)
+  ]);
+
+  for await (const chunk of streamWithTimeout as AsyncIterable<any>) {
     if (isGeneralistMessage(chunk)) {
       const lastIndex = chunk.generalist.messages.length - 1;
       if (chunk.generalist.messages[lastIndex]?.content) {
