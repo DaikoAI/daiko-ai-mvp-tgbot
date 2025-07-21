@@ -18,6 +18,11 @@ import { isValidSolanaAddress } from "../../utils/solana";
 import { getAssetsByOwner } from "../helius";
 import { proceedToNextStep } from "./command";
 
+// Helper function to escape MarkdownV2 special characters
+const escapeMarkdownV2 = (text: string): string => {
+  return text.replace(/[_*\[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
+};
+
 export const setupHandler = (bot: Bot) => {
   bot.on("message:text", async (ctx: Context) => {
     const userId = ctx.from?.id.toString();
@@ -57,7 +62,7 @@ export const setupHandler = (bot: Bot) => {
               waitingForInput: null,
             });
 
-            await ctx.reply(`Wallet address set to ${text.replace(/[_*\[\]()~`>#+\-=|{}.!\\]/g, "\\$&")}\\!`, {
+            await ctx.reply(`Wallet address set to ${escapeMarkdownV2(text)}\\!`, {
               parse_mode: "MarkdownV2",
             });
 
@@ -212,7 +217,7 @@ export const setupHandler = (bot: Bot) => {
             logger.warn("message handler", "Failed to delete thinking message:", deleteError);
           }
 
-          await ctx.reply(latestAgentMessage, {
+          await ctx.reply(escapeMarkdownV2(latestAgentMessage), {
             parse_mode: "MarkdownV2",
           });
 
