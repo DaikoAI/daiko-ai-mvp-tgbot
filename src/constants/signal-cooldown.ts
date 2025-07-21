@@ -55,8 +55,8 @@ export const COOLDOWN_CONFIG = {
 } as const;
 
 /**
- * Stablecoin and excluded token configuration
- * These tokens should not generate price signals
+ * Stablecoin exclusion configuration
+ * Only stablecoins should be excluded from price signals
  */
 export const EXCLUDED_TOKENS = {
   /** Known stablecoin addresses on Solana */
@@ -65,21 +65,6 @@ export const EXCLUDED_TOKENS = {
     "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", // USDT
     "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs", // USDT (Wormhole)
     "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU", // USDC (Wormhole)
-    "SHDWyBxihqiCj6YekG2GUr7wqKLeLAMK1gHZck9pL6y", // SHDW (if treated as stable)
-  ],
-
-  /** Known wrapped/synthetic assets that mirror other markets */
-  SYNTHETIC_ASSETS: [
-    "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E", // WBTC (mirrors Bitcoin price)
-    "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs", // WETH (mirrors Ethereum price)
-  ],
-
-  /** LST (Liquid Staking Tokens) that closely track SOL price */
-  LIQUID_STAKING_TOKENS: [
-    "jupSoLaHXQiZZTSfEWMTRRgpnyFm8f6sZdosWBjx93v", // jupSOL
-    "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn", // JitoSOL
-    "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So", // mSOL
-    "7Q2afV64in6N6SeZsAAB81TJzwDoD6zpqmHkzi9Dcavn", // JSOL
   ],
 };
 
@@ -89,14 +74,6 @@ export const EXCLUDED_TOKENS = {
 export const isExcludedToken = (tokenAddress: string): { excluded: boolean; reason?: string } => {
   if (EXCLUDED_TOKENS.STABLECOINS.includes(tokenAddress)) {
     return { excluded: true, reason: "STABLECOIN" };
-  }
-
-  if (EXCLUDED_TOKENS.SYNTHETIC_ASSETS.includes(tokenAddress)) {
-    return { excluded: true, reason: "SYNTHETIC_ASSET" };
-  }
-
-  if (EXCLUDED_TOKENS.LIQUID_STAKING_TOKENS.includes(tokenAddress)) {
-    return { excluded: true, reason: "LIQUID_STAKING_TOKEN" };
   }
 
   return { excluded: false };

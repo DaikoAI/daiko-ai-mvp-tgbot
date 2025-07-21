@@ -27,20 +27,20 @@ describe("Signal Cooldown System", () => {
       expect(result.reason).toBe("STABLECOIN");
     });
 
-    it("should exclude WBTC synthetic asset", () => {
+    it("should not exclude WBTC (now allowed)", () => {
       const wbtcAddress = "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E";
       const result = isExcludedToken(wbtcAddress);
 
-      expect(result.excluded).toBe(true);
-      expect(result.reason).toBe("SYNTHETIC_ASSET");
+      expect(result.excluded).toBe(false);
+      expect(result.reason).toBeUndefined();
     });
 
-    it("should exclude jupSOL liquid staking token", () => {
+    it("should not exclude jupSOL (now allowed)", () => {
       const jupSolAddress = "jupSoLaHXQiZZTSfEWMTRRgpnyFm8f6sZdosWBjx93v";
       const result = isExcludedToken(jupSolAddress);
 
-      expect(result.excluded).toBe(true);
-      expect(result.reason).toBe("LIQUID_STAKING_TOKEN");
+      expect(result.excluded).toBe(false);
+      expect(result.reason).toBeUndefined();
     });
 
     it("should not exclude regular tokens", () => {
