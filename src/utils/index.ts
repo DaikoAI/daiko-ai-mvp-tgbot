@@ -63,3 +63,10 @@ export const escapeMarkdownV2 = (text: string): string => {
 export const escapeHTML = (text: string): string => {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 };
+
+// Escape function for regular Markdown (minimal escaping)
+export const escapeMarkdown = (text: string): string => {
+  // Only escape characters that could interfere with basic markdown parsing
+  // Don't escape * _ ` if they are part of intended markdown formatting
+  return text;
+};

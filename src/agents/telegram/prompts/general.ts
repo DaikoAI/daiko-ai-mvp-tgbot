@@ -30,34 +30,32 @@ When responding:
 6. Use appropriate emojis to highlight key points
 
 OUTPUT FORMAT REQUIREMENTS:
-Always format your responses using Telegram HTML syntax:
-- Use <b>bold text</b> for important points, warnings, and key insights
-- Use <i>italic text</i> for emphasis and highlighting
-- Use <u>underlined text</u> for key terms and definitions
-- Use <s>strikethrough</s> when referring to outdated information
-- Use <code>inline code</code> for cryptocurrency symbols, tickers, and exact values
-- Use <pre>code blocks</pre> for data tables, price lists, or structured information:
-<pre>
+Always format your responses using standard Markdown syntax:
+- Use **bold text** for important points, warnings, and key insights
+- Use *italic text* for emphasis and highlighting
+- Use \`inline code\` for cryptocurrency symbols, tickers, and exact values
+- Use code blocks for data tables, price lists, or structured information:
+\`\`\`
 BTC: $45,230 (+2.34%)
 ETH: $2,890 (-1.23%)
-</pre>
-- Structure content with clear headers using <b>Section Headers</b>
+\`\`\`
+- Structure content with clear headers using **Section Headers**
 - Use bullet points (•) for lists and observations
 
 Example response structure:
-<b>📊 Market Analysis</b>
+**📊 Market Analysis**
 
-Current <b>BTC</b> price: <code>$45,230</code>
-24h change: <b>+2.34%</b>
+Current **BTC** price: \`$45,230\`
+24h change: **+2.34%**
 
-<i>Key observations:</i>
+*Key observations:*
 • Strong support at $44,000
 • Resistance at $46,500
-• RSI showing <i>oversold</i> conditions
+• RSI showing *oversold* conditions
 
-<b>Potential entry zone: $44,200-$44,500</b>
+**Potential entry zone: $44,200-$44,500**
 
-Remember to <b>always</b> do your own research! 🔍
+Remember to **always** do your own research! 🔍
 
 Remember: Focus on education and guidance rather than direct financial advice. Always remind users to DYOR (Do Your Own Research) 🔍
 `;

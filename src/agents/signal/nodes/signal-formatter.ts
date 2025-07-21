@@ -90,38 +90,33 @@ const createSimpleSignalResponse = (state: SignalGraphState) => {
 
   const recommendedAction = getRecommendedAction(signalDecision!.direction, signalDecision!.riskLevel);
 
-  // MarkdownV2 escape function for special characters
-  const escapeMarkdownV2 = (text: string): string => {
-    return text.replace(/[_*\[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
-  };
+  // Format technical analysis safely - using normal markdown, no escaping needed
+  const formattedReasoning = signalDecision!.reasoning;
+  const formattedKeyFactors = signalDecision!.keyFactors.map((factor) => `▫️ ${factor}`).join("\n");
 
-  // Format technical analysis safely
-  const formattedReasoning = escapeMarkdownV2(signalDecision!.reasoning);
-  const formattedKeyFactors = signalDecision!.keyFactors.map((factor) => `▫️ ${escapeMarkdownV2(factor)}`).join("\n");
-
-  const message = `${directionEmoji} **${escapeMarkdownV2(tokenSymbol)} - ${escapeMarkdownV2(signalDecision!.signalType)}** ${directionEmoji}
+  const message = `${directionEmoji} **${tokenSymbol} - ${signalDecision!.signalType}** ${directionEmoji}
 
 🎯 **RECOMMENDED ACTION**: ${recommendedAction}
-💰 **Current Price**: $${escapeMarkdownV2(currentPrice.toString())}
+💰 **Current Price**: $${currentPrice.toString()}
 📊 **Confidence**: **${Math.round(signalDecision!.confidence * 100)}%** | ${riskFormatting.emoji} ${riskFormatting.text}
 
 🔍 **Market Situation**
 ${formattedReasoning}
 
 ${riskFormatting.emoji} **Risk Assessment**
-*This is a ${escapeMarkdownV2(signalDecision!.riskLevel.toLowerCase())} risk opportunity\\. ${
+*This is a ${signalDecision!.riskLevel.toLowerCase()} risk opportunity. ${
     signalDecision!.riskLevel === "HIGH"
-      ? "High potential rewards but requires careful position sizing\\."
+      ? "High potential rewards but requires careful position sizing."
       : signalDecision!.riskLevel === "MEDIUM"
-        ? "Moderate risk with balanced risk\\-reward potential\\."
-        : "Relatively stable with lower volatility expected\\."
+        ? "Moderate risk with balanced risk-reward potential."
+        : "Relatively stable with lower volatility expected."
   }*
 
-${timeframeEmoji} **Timeframe**: ${escapeMarkdownV2(signalDecision!.timeframe)} \\- ${
+${timeframeEmoji} **Timeframe**: ${signalDecision!.timeframe} - ${
     signalDecision!.timeframe === "SHORT"
       ? "*Active monitoring required*"
       : signalDecision!.timeframe === "MEDIUM"
-        ? "*Regular check\\-ins recommended*"
+        ? "*Regular check-ins recommended*"
         : "*Patient approach suggested*"
   }
 
@@ -136,7 +131,7 @@ ${formattedKeyFactors}
         : "Stay alert for clearer market direction"
   }*
 
-⚠️ _Always DYOR \\(Do Your Own Research\\) before making trading decisions_`;
+⚠️ _Always DYOR (Do Your Own Research) before making trading decisions_`;
 
   const level = signalDecision!.riskLevel === "HIGH" ? 3 : signalDecision!.riskLevel === "MEDIUM" ? 2 : 1;
 
@@ -160,21 +155,17 @@ ${formattedKeyFactors}
  * シグナル生成不要時のデフォルトレスポンス
  */
 const createNoSignalResponse = (tokenAddress: string, tokenSymbol: string) => {
-  const escapeMarkdownV2 = (text: string): string => {
-    return text.replace(/[_*\[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
-  };
-
   return {
     finalSignal: {
       level: 1 as const,
       title: `🔍 ${tokenSymbol} Market Watch`,
-      message: `🔍 **${escapeMarkdownV2(tokenSymbol)} Market Analysis** 📊
+      message: `🔍 **${tokenSymbol} Market Analysis** 📊
 
 ⚡ **CURRENT STATUS**: *No Signal Generated*
 🎯 **Market Condition**: Neutral trading range
 
 📈 **Analysis Summary**
-Current technical indicators are within normal parameters\\. No significant trend breakouts or momentum shifts detected at this time\\.
+Current technical indicators are within normal parameters. No significant trend breakouts or momentum shifts detected at this time.
 
 🔄 **What This Means**
 ▫️ *Price action is consolidating*
@@ -186,7 +177,7 @@ Current technical indicators are within normal parameters\\. No significant tren
 • 📊 **Watch key support/resistance levels**
 • ⚡ **Stay alert** for momentum changes
 
-💡 *Sometimes the best trade is no trade\\. Patience often pays off in crypto markets\\!*
+💡 *Sometimes the best trade is no trade. Patience often pays off in crypto markets!*
 
 🔔 _We'll notify you when clearer opportunities emerge_`,
       priority: "LOW" as const,

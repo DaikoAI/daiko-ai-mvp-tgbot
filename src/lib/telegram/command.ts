@@ -11,7 +11,7 @@ export const setupCommands = (bot: Bot) => {
     const keyboard = new InlineKeyboard().text("✅ Agree and start", "start_agree");
 
     await ctx.reply(welcomeMessage, {
-      parse_mode: "MarkdownV2",
+      parse_mode: "Markdown",
       reply_markup: keyboard,
     });
   });
@@ -23,8 +23,8 @@ export const setupCommands = (bot: Bot) => {
     });
 
     if (!ctx.from) {
-      await ctx.reply("Could not retrieve user information\\. Please try again\\.", {
-        parse_mode: "MarkdownV2",
+      await ctx.reply("Could not retrieve user information. Please try again.", {
+        parse_mode: "Markdown",
       });
       return;
     }
@@ -45,8 +45,8 @@ export const setupCommands = (bot: Bot) => {
     }
 
     // Send confirmation message
-    await ctx.reply("Thank you for agreeing to use Daiko AI\\! Let's set up your profile\\.", {
-      parse_mode: "MarkdownV2",
+    await ctx.reply("Thank you for agreeing to use Daiko AI! Let's set up your profile.", {
+      parse_mode: "Markdown",
     });
 
     // Proceed to the first setup step
@@ -56,8 +56,8 @@ export const setupCommands = (bot: Bot) => {
   // Register setup command handler
   bot.command("setup", async (ctx) => {
     if (!ctx.from) {
-      await ctx.reply("Could not retrieve user information\\. Please try again\\.", {
-        parse_mode: "MarkdownV2",
+      await ctx.reply("Could not retrieve user information. Please try again.", {
+        parse_mode: "Markdown",
       });
       return;
     }
@@ -78,8 +78,8 @@ export const setupCommands = (bot: Bot) => {
       userProfile = await getUserProfile(userId);
     }
 
-    await ctx.reply("Starting profile setup\\.", {
-      parse_mode: "MarkdownV2",
+    await ctx.reply("Starting profile setup.", {
+      parse_mode: "Markdown",
     });
 
     // Proceed to the first setup step
@@ -108,16 +108,16 @@ export const setupCommands = (bot: Bot) => {
   }
 
   bot.command("help", async (ctx) => {
-    await ctx.reply("Please use /setup to start the setup process\\. If you need help, please contact @DaikoAI\\.", {
-      parse_mode: "MarkdownV2",
+    await ctx.reply("Please use /setup to start the setup process. If you need help, please contact @DaikoAI.", {
+      parse_mode: "Markdown",
     });
   });
 
   bot.command("feedback", async (ctx) => {
     await ctx.reply(
-      "If you have feedback or issues, please open an issue here\\: https\\://github\\.com/Daiko\\-AI/daiko\\-ai\\-mvp\\-tgbot/issues",
+      "If you have feedback or issues, please open an issue here: https://github.com/Daiko-AI/daiko-ai-mvp-tgbot/issues",
       {
-        parse_mode: "MarkdownV2",
+        parse_mode: "Markdown",
       },
     );
   });
@@ -126,21 +126,21 @@ export const setupCommands = (bot: Bot) => {
     const userId = ctx.from?.id.toString();
 
     if (!userId) {
-      await ctx.reply("Could not retrieve user information\\. Please try again\\.", {
-        parse_mode: "MarkdownV2",
+      await ctx.reply("Could not retrieve user information. Please try again.", {
+        parse_mode: "Markdown",
       });
       return;
     }
 
     try {
       await clearChatHistory(userId);
-      await ctx.reply("🗑️ Chat history has been cleared\\!", {
-        parse_mode: "MarkdownV2",
+      await ctx.reply("🗑️ Chat history has been cleared!", {
+        parse_mode: "Markdown",
       });
     } catch (error) {
       logger.error("clear command", "Error clearing chat history:", error);
-      await ctx.reply("❌ Error clearing chat history\\. Please try again\\.", {
-        parse_mode: "MarkdownV2",
+      await ctx.reply("❌ Error clearing chat history. Please try again.", {
+        parse_mode: "Markdown",
       });
     }
   });
@@ -179,8 +179,8 @@ export const proceedToNextStep = async (ctx: Context, userId: string, currentSte
   // Display prompts based on the next step
   switch (nextStep) {
     case SetupStep.WALLET_ADDRESS: {
-      await ctx.reply("First, please tell me your wallet address\\:", {
-        parse_mode: "MarkdownV2",
+      await ctx.reply("First, please tell me your wallet address:", {
+        parse_mode: "Markdown",
       });
       await updateUserProfile(userId, {
         waitingForInput: SetupStep.WALLET_ADDRESS,
@@ -189,85 +189,14 @@ export const proceedToNextStep = async (ctx: Context, userId: string, currentSte
       break;
     }
 
-    // case SetupStep.AGE: {
-    //     await ctx.reply("First, please tell me your age (numbers only):", {
-    //         parse_mode: "Markdown",
-    //     });
-    //     await kvStore.updateUserProfile(userId, {
-    //         waitingForInput: SetupStep.AGE,
-    //         currentSetupStep: SetupStep.AGE,
-    //     });
-    //     break;
-    // }
-
-    // case SetupStep.RISK_TOLERANCE: {
-    //     const riskKeyboard = new InlineKeyboard()
-    //         .text("1️⃣", "risk_1")
-    //         .text("2️⃣", "risk_2")
-    //         .text("3️⃣", "risk_3")
-    //         .row()
-    //         .text("4️⃣", "risk_4")
-    //         .text("5️⃣", "risk_5")
-    //         .text("6️⃣", "risk_6")
-    //         .row()
-    //         .text("7️⃣", "risk_7")
-    //         .text("8️⃣", "risk_8")
-    //         .text("9️⃣", "risk_9")
-    //         .row()
-    //         .text("🔟", "risk_10");
-
-    //     await ctx.reply(
-    //         "Next, please select your risk tolerance for crypto assets on a scale of 1-10:\n\n" +
-    //             "1️⃣ = Very conservative (risk-averse)\n" +
-    //             "5️⃣ = Balanced\n" +
-    //             "🔟 = Aggressive (high risk tolerance)",
-    //         {
-    //             parse_mode: "Markdown",
-    //             reply_markup: riskKeyboard,
-    //         },
-    //     );
-    //     await kvStore.updateUserProfile(userId, {
-    //         currentSetupStep: SetupStep.RISK_TOLERANCE,
-    //     });
-    //     break;
-    // }
-
-    // case SetupStep.CRYPTO_ASSETS: {
-    //     await ctx.reply(
-    //         "Enter an approximate total value of all your crypto across all wallets (numbers only, in USD):",
-    //         {
-    //             parse_mode: "Markdown",
-    //         },
-    //     );
-    //     await kvStore.updateUserProfile(userId, {
-    //         waitingForInput: SetupStep.CRYPTO_ASSETS,
-    //         currentSetupStep: SetupStep.CRYPTO_ASSETS,
-    //     });
-    //     break;
-    // }
-
-    // case SetupStep.TOTAL_ASSETS: {
-    //     await ctx.reply(
-    //         "Enter an approximate total value of all your assets, including stocks, real estate, etc (numbers only, in USD):",
-    //         {
-    //             parse_mode: "Markdown",
-    //         },
-    //     );
-    //     await kvStore.updateUserProfile(userId, {
-    //         waitingForInput: SetupStep.TOTAL_ASSETS,
-    //         currentSetupStep: SetupStep.TOTAL_ASSETS,
-    //     });
-    //     break;
-    // }
-
     case SetupStep.COMPLETE: {
       const profile = await getUserProfile(userId);
 
       const profileSummary =
-        "*Setup is complete\\!* \n I'll keep an eye on your tokens and alert you with the reason when danger's near\\.";
+        "**Setup is complete!** \n I'll keep an eye on your tokens and alert you with the reason when danger's near.";
 
       await ctx.reply(profileSummary, {
-        parse_mode: "MarkdownV2",
+        parse_mode: "Markdown",
       });
 
       // Mark setup as complete

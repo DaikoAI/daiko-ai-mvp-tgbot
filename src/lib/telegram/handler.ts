@@ -209,7 +209,7 @@ export const setupHandler = (bot: Bot) => {
           }
 
           await ctx.reply(latestAgentMessage, {
-            parse_mode: "HTML",
+            parse_mode: "Markdown",
           });
 
           // Save AI message to database

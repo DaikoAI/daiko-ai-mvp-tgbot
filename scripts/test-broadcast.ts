@@ -10,26 +10,26 @@ async function main() {
   const startTime = Date.now();
 
   try {
-    // 包括的なMarkdownV2テストメッセージ（手動エスケープ適用）
-    const testMessage = `🧪 *Test Message \\- Markdown Features*
+    // 包括的なMarkdownテストメッセージ
+    const testMessage = `🧪 **Test Message - Markdown Features**
 
-This is a comprehensive test of Telegram's MarkdownV2 capabilities\\.
+This is a comprehensive test of Telegram's Markdown capabilities.
 
-📊 *Market Analysis Example*
-• Current Price\\: $0\\.001234
-• 24h Change\\: \\+15\\.67%
-• Volume\\: $1,234,567
+📊 **Market Analysis Example**
+• Current Price: $0.001234
+• 24h Change: +15.67%
+• Volume: $1,234,567
 
-🎯 _Technical Indicators_\\:
-\`RSI\`\\: 72\\.5 \\(Overbought\\)
-\`MACD\`\\: Bullish divergence detected
-\`Support\`\\: $0\\.001100
-\`Resistance\`\\: $0\\.001500
+🎯 *Technical Indicators*:
+\`RSI\`: 72.5 (Overbought)
+\`MACD\`: Bullish divergence detected
+\`Support\`: $0.001100
+\`Resistance\`: $0.001500
 
-📈 *Signal Summary*
-Direction\\: *BUY* 🚀
-Confidence\\: *85%*
-Risk Level\\: _MEDIUM_ ⚖️
+📈 **Signal Summary**
+Direction: **BUY** 🚀
+Confidence: **85%**
+Risk Level: *MEDIUM* ⚖️
 
 \`\`\`
 Entry: $0.001200-$0.001250
@@ -38,14 +38,14 @@ Target 2: $0.001600 (+33%)
 Stop Loss: $0.001050 (-12%)
 \`\`\`
 
-🔗 *Useful Links*\\:
-• [DexScreener](https://dexscreener\\.com)
-• [Jupiter Swap](https://jup\\.ag)
-• [Official Website](https://daiko\\.ai)
+🔗 **Useful Links**:
+• [DexScreener](https://dexscreener.com)
+• [Jupiter Swap](https://jup.ag)
+• [Official Website](https://daiko.ai)
 
-⚠️ _Always DYOR \\(Do Your Own Research\\)_
+⚠️ _Always DYOR (Do Your Own Research)_
 
-📅 Sent at\\: ${new Date().toLocaleString("en-US", { timeZone: "Asia/Tokyo" }).replace(/[.,:()]/g, "\\$&")}
+📅 Sent at: ${new Date().toLocaleString("en-US", { timeZone: "Asia/Tokyo" })}
 
 If you receive this message with proper formatting, all Markdown features are working correctly ✅`;
 
@@ -61,7 +61,7 @@ If you receive this message with proper formatting, all Markdown features are wo
     logger.info("📤 Sending comprehensive test message with buttons");
 
     const result = await broadcastMessage(testMessage, {
-      parse_mode: "MarkdownV2",
+      parse_mode: "Markdown",
       disable_notification: false,
       buttons: testButtons,
     });
