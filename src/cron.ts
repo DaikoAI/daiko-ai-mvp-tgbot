@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { generateSignal } from "./agents/signal/graph";
 import { OHLCV_RETENTION } from "./constants/database";
+import { isExcludedToken } from "./constants/signal-cooldown";
 import { tokenOHLCV } from "./db";
 import { createPhantomButtons } from "./lib/phantom";
 import { shouldSkipDueToCooldown } from "./lib/signal-cooldown";
@@ -98,6 +99,17 @@ const technicalAnalysisTask = async () => {
   const cache = getTACache();
 
   const analysisPromises = tokens.map(async (token) => {
+    // Check if token should be excluded from analysis
+    const exclusionCheck = isExcludedToken(token.address);
+    if (exclusionCheck.excluded) {
+      logger.info(`Skipping technical analysis for excluded token: ${token.symbol}`, {
+        tokenAddress: token.address,
+        tokenSymbol: token.symbol,
+        exclusionReason: exclusionCheck.reason,
+      });
+      return null;
+    }
+
     // 最新100件のOHLCVデータを取得（テクニカル分析には十分なデータが必要）
     const ohlcvData = await getTokenOHLCV(token.address, 100);
 

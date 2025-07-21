@@ -1,3 +1,4 @@
+import { isExcludedToken } from "../constants/signal-cooldown";
 import { SIGNAL_THRESHOLDS, SIGNAL_TYPES } from "../constants/signal-thresholds";
 import type { TechnicalAnalysis } from "../db/schema/technical-analysis";
 import { logger } from "../utils/logger";
@@ -8,6 +9,7 @@ export interface StaticFilterResult {
   signalCandidates: string[];
   confluenceScore: number;
   riskLevel: "LOW" | "MEDIUM" | "HIGH";
+  exclusionReason?: string; // Added for exclusion tracking
 }
 
 /**
@@ -15,6 +17,24 @@ export interface StaticFilterResult {
  * コスト効率のため、明らかに閾値を超えていない場合は早期リターン
  */
 export const applyStaticSignalFilter = (tokenAddress: string, analysis: TechnicalAnalysis): StaticFilterResult => {
+  // First check: Exclude stablecoins and other inappropriate tokens
+  const exclusionCheck = isExcludedToken(tokenAddress);
+  if (exclusionCheck.excluded) {
+    logger.info("Token excluded from signal generation", {
+      tokenAddress,
+      reason: exclusionCheck.reason,
+    });
+
+    return {
+      shouldProceed: false,
+      triggeredIndicators: [],
+      signalCandidates: [],
+      confluenceScore: 0,
+      riskLevel: "LOW",
+      exclusionReason: exclusionCheck.reason,
+    };
+  }
+
   const triggeredIndicators: string[] = [];
   const signalCandidates: string[] = [];
   let confluenceScore = 0;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COOLDOWN_CONFIG } from "../../../src/constants/signal-cooldown";
+import { COOLDOWN_CONFIG, isExcludedToken } from "../../../src/constants/signal-cooldown";
 import {
     calculateSmartCooldown,
     classifyMarketCondition,
@@ -10,6 +10,64 @@ import {
 import type { TechnicalAnalysisResult } from "../../../src/lib/ta";
 
 describe("Signal Cooldown System", () => {
+  describe("Token Exclusion", () => {
+    it("should exclude USDC stablecoin", () => {
+      const usdcAddress = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+      const result = isExcludedToken(usdcAddress);
+
+      expect(result.excluded).toBe(true);
+      expect(result.reason).toBe("STABLECOIN");
+    });
+
+    it("should exclude USDT stablecoin", () => {
+      const usdtAddress = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB";
+      const result = isExcludedToken(usdtAddress);
+
+      expect(result.excluded).toBe(true);
+      expect(result.reason).toBe("STABLECOIN");
+    });
+
+    it("should exclude WBTC synthetic asset", () => {
+      const wbtcAddress = "9n4nbM75f5Ui33ZbPYXn59EwSgE8CGsHtAeTH5YFeJ9E";
+      const result = isExcludedToken(wbtcAddress);
+
+      expect(result.excluded).toBe(true);
+      expect(result.reason).toBe("SYNTHETIC_ASSET");
+    });
+
+    it("should exclude jupSOL liquid staking token", () => {
+      const jupSolAddress = "jupSoLaHXQiZZTSfEWMTRRgpnyFm8f6sZdosWBjx93v";
+      const result = isExcludedToken(jupSolAddress);
+
+      expect(result.excluded).toBe(true);
+      expect(result.reason).toBe("LIQUID_STAKING_TOKEN");
+    });
+
+    it("should not exclude regular tokens", () => {
+      const wifAddress = "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"; // WIF
+      const result = isExcludedToken(wifAddress);
+
+      expect(result.excluded).toBe(false);
+      expect(result.reason).toBeUndefined();
+    });
+
+    it("should not exclude SOL", () => {
+      const solAddress = "So11111111111111111111111111111111111111112";
+      const result = isExcludedToken(solAddress);
+
+      expect(result.excluded).toBe(false);
+      expect(result.reason).toBeUndefined();
+    });
+
+    it("should not exclude unknown token addresses", () => {
+      const unknownAddress = "1234567890abcdef1234567890abcdef12345678";
+      const result = isExcludedToken(unknownAddress);
+
+      expect(result.excluded).toBe(false);
+      expect(result.reason).toBeUndefined();
+    });
+  });
+
   describe("calculateSmartCooldown", () => {
     it("should calculate shorter cooldown for high volatility memecoin", () => {
       const analysis: TechnicalAnalysisResult = {
