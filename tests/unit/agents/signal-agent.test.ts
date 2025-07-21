@@ -246,7 +246,7 @@ describe("Signal Agent", () => {
       // Assert signal decision exists
       expect(signal.signalDecision).toBeDefined();
       if (signal.signalDecision) {
-        expect(signal.signalDecision.direction).toMatch(/BUY|SELL|WATCH/);
+        expect(signal.signalDecision.direction).toMatch(/BUY|SELL|NEUTRAL/);
         expect(signal.signalDecision.confidence).toBeGreaterThan(0);
         expect(signal.signalDecision.confidence).toBeLessThanOrEqual(1);
       }
