@@ -4,7 +4,7 @@ import { initTelegramGraph } from "../../agents/telegram/graph";
 import type { NewToken } from "../../db";
 import type { StreamChunk } from "../../types";
 import { SetupStep } from "../../types";
-import { createTimeoutPromise, dumpTokenUsage, escapeMarkdownV2ForAI, isGeneralistMessage } from "../../utils";
+import { createTimeoutPromise, dumpTokenUsage, isGeneralistMessage } from "../../utils";
 import {
   createTokens,
   getChatHistory,
@@ -189,7 +189,7 @@ export const setupHandler = (bot: Bot) => {
           if (isGeneralistMessage(chunk)) {
             const lastIndex = chunk.generalist.messages.length - 1;
             if (chunk.generalist.messages[lastIndex]?.content) {
-              latestAgentMessage = escapeMarkdownV2ForAI(String(chunk.generalist.messages[lastIndex].content));
+              latestAgentMessage = String(chunk.generalist.messages[lastIndex].content);
               logger.debug("message handler", "Got generalist message", latestAgentMessage);
             }
           }
@@ -209,7 +209,7 @@ export const setupHandler = (bot: Bot) => {
           }
 
           await ctx.reply(latestAgentMessage, {
-            parse_mode: "MarkdownV2",
+            parse_mode: "HTML",
           });
 
           // Save AI message to database
