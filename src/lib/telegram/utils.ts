@@ -1,7 +1,6 @@
 import { err, ok, type Result } from "neverthrow";
 import type { BroadcastResult, TelegramError } from "../../types";
 import { getUserIds, getUserProfile } from "../../utils/db";
-import { getLanguageDisplayName } from "../../utils/language";
 import { logger } from "../../utils/logger";
 import { getBotInstance } from "./bot";
 
@@ -237,23 +236,15 @@ export const sendMessageToUser = async (
 
 /**
  * Localize message content based on user language preference
- * For now, returns the original message. Future enhancement: use LLM for translation
+ * Messages are already generated in the appropriate language via prompt-level language instructions
  */
 const localizeMessage = async (message: string, userLanguage: string): Promise<string> => {
-  // For now, return the original message
-  // TODO: Implement LLM-based translation for non-English languages
-  if (userLanguage === "en") {
-    return message;
-  }
-
-  // Add language indicator for non-English users
-  const languageDisplay = getLanguageDisplayName(userLanguage);
-  logger.debug("Message language preference noted", {
+  // Messages are already localized at generation time via getLanguageInstruction()
+  // No additional processing needed
+  logger.debug("Using pre-localized message", {
     userLanguage,
-    languageDisplay,
     messagePreview: message.substring(0, 100),
   });
 
-  // Future: translate message using LLM
   return message;
 };

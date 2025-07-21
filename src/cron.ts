@@ -196,6 +196,7 @@ const technicalAnalysisTask = async () => {
 
 /**
  * 個別トークンのシグナル生成処理
+ * 各言語で個別にシグナルを生成し、複数のシグナルレコードを保存
  */
 const processTokenSignal = async (analysis: any) => {
   // トークン情報を取得
@@ -227,70 +228,135 @@ const processTokenSignal = async (analysis: any) => {
 
   const currentPrice = parseFloat(latestOHLCV[0].close);
 
-  logger.info("Starting signal generation for token", {
-    tokenAddress: analysis.token,
-    tokenSymbol: token.symbol,
-    currentPrice,
-  });
-
-  const result = await generateSignal({
-    tokenAddress: analysis.token,
-    tokenSymbol: token.symbol,
-    currentPrice,
-    technicalAnalysis: analysis,
-  });
-
-  // シグナルが生成されなかった場合は早期リターン
-  if (!result.finalSignal || result.finalSignal.level < 1) {
-    logger.info("No signal generated for token", {
+  // このトークンを保有しているユーザーの言語を取得
+  const holdingUsers = await getUsersHoldingToken(analysis.token);
+  if (holdingUsers.length === 0) {
+    logger.info("No users holding token, skipping signal generation", {
       tokenAddress: analysis.token,
-      tokenSymbol: token.symbol,
-      hasResult: !!result,
-      hasFinalSignal: !!result.finalSignal,
-      signalLevel: result.finalSignal?.level,
     });
+    // 処理済みフラグを設定
+    await markTechnicalAnalysisAsProcessed(analysis.id);
     return null;
   }
 
-  // DBに保存
-  const signalId = `signal_${analysis.token}_${Date.now()}`;
+  // 必要な言語を抽出（重複排除）
+  const requiredLanguages = [...new Set(holdingUsers.map((user) => user.language || "en"))];
 
-  const createdSignal = await createSignal({
-    id: signalId,
-    token: analysis.token,
-    signalType: result.signalDecision?.signalType || "TECHNICAL_ALERT",
-    title: result.finalSignal.title,
-    body: result.finalSignal.message,
-    direction: result.signalDecision?.direction || "NEUTRAL",
-    confidence: result.signalDecision?.confidence?.toString() || "0",
-    explanation: result.signalDecision?.reasoning || "",
-    timestamp: new Date(),
-    value: {
-      level: result.finalSignal.level,
-      priority: result.finalSignal.priority,
-      tags: result.finalSignal.tags,
-      technicalAnalysisId: analysis.id,
-      staticFilterResult: result.staticFilterResult,
-      buttons: result.finalSignal.buttons || [],
-    },
-  });
-
-  logger.info("Signal generated and saved", {
-    signalId: createdSignal.id,
+  logger.info("Starting multi-language signal generation for token", {
     tokenAddress: analysis.token,
     tokenSymbol: token.symbol,
-    signalType: result.signalDecision?.signalType,
-    level: result.finalSignal.level,
-    priority: result.finalSignal.priority,
+    currentPrice,
+    requiredLanguages,
+    totalUsers: holdingUsers.length,
   });
+
+  const generatedSignals = [];
+
+  // 各言語でシグナルを生成
+  for (const language of requiredLanguages) {
+    try {
+      logger.info("Generating signal for language", {
+        tokenAddress: analysis.token,
+        language,
+        tokenSymbol: token.symbol,
+      });
+
+      const result = await generateSignal({
+        tokenAddress: analysis.token,
+        tokenSymbol: token.symbol,
+        currentPrice,
+        technicalAnalysis: analysis,
+        userLanguage: language, // 言語を指定してシグナル生成
+      });
+
+      // シグナルが生成されなかった場合はこの言語をスキップ
+      if (!result.finalSignal || result.finalSignal.level < 1) {
+        logger.info("No signal generated for language", {
+          tokenAddress: analysis.token,
+          tokenSymbol: token.symbol,
+          language,
+          hasResult: !!result,
+          hasFinalSignal: !!result.finalSignal,
+          signalLevel: result.finalSignal?.level,
+        });
+        continue;
+      }
+
+      // 言語別のシグナルIDを生成
+      const signalId = `signal_${analysis.token}_${language}_${Date.now()}`;
+
+      const createdSignal = await createSignal({
+        id: signalId,
+        token: analysis.token,
+        signalType: result.signalDecision?.signalType || "TECHNICAL_ALERT",
+        title: result.finalSignal.title,
+        body: result.finalSignal.message,
+        direction: result.signalDecision?.direction || "NEUTRAL",
+        confidence: result.signalDecision?.confidence?.toString() || "0",
+        explanation: result.signalDecision?.reasoning || "",
+        timestamp: new Date(),
+        value: {
+          level: result.finalSignal.level,
+          priority: result.finalSignal.priority,
+          tags: result.finalSignal.tags,
+          technicalAnalysisId: analysis.id,
+          staticFilterResult: result.staticFilterResult,
+          buttons: result.finalSignal.buttons || [],
+          language, // 言語情報を保存
+        },
+      });
+
+      generatedSignals.push({
+        signalId: createdSignal.id,
+        token: token.symbol,
+        language,
+        message: result.finalSignal.message,
+      });
+
+      logger.info("Signal generated and saved for language", {
+        signalId: createdSignal.id,
+        tokenAddress: analysis.token,
+        tokenSymbol: token.symbol,
+        language,
+        signalType: result.signalDecision?.signalType,
+        level: result.finalSignal.level,
+        priority: result.finalSignal.priority,
+      });
+    } catch (error) {
+      logger.error("Failed to generate signal for language", {
+        tokenAddress: analysis.token,
+        language,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // エラーが発生してもother languagesの処理を続行
+      continue;
+    }
+  }
 
   // 処理済みフラグを設定
   await markTechnicalAnalysisAsProcessed(analysis.id);
 
+  if (generatedSignals.length === 0) {
+    logger.warn("No signals generated for any language", {
+      tokenAddress: analysis.token,
+      tokenSymbol: token.symbol,
+      requiredLanguages,
+    });
+    return null;
+  }
+
+  logger.info("Multi-language signal generation completed", {
+    tokenAddress: analysis.token,
+    tokenSymbol: token.symbol,
+    totalLanguages: requiredLanguages.length,
+    successfulSignals: generatedSignals.length,
+    generatedLanguages: generatedSignals.map((s) => s.language),
+  });
+
   return {
-    signalId: createdSignal.id,
-    token: token.symbol,
-    message: result.finalSignal.message,
+    tokenAddress: analysis.token,
+    tokenSymbol: token.symbol,
+    signals: generatedSignals,
   };
 };
 
@@ -380,10 +446,19 @@ const generateSignalTask = async () => {
     const results = await Promise.all(signalPromises);
     const generatedSignals = results.filter((result) => result !== null);
 
+    // 生成されたシグナルの統計を計算
+    const totalSignals = generatedSignals.reduce((sum, result) => sum + (result.signals?.length || 0), 0);
+
     logger.info("Signal generation task completed", {
       totalAnalyzed: unprocessedAnalyses.length,
-      signalsGenerated: generatedSignals.length,
-      signals: generatedSignals.map((s) => ({ id: s?.signalId, token: s?.token })),
+      tokensProcessed: generatedSignals.length,
+      totalSignalsGenerated: totalSignals,
+      signalsByToken: generatedSignals.map((result) => ({
+        tokenAddress: result.tokenAddress,
+        tokenSymbol: result.tokenSymbol,
+        signalCount: result.signals?.length || 0,
+        languages: result.signals?.map((s) => s.language) || [],
+      })),
     });
   } catch (error) {
     logger.error("Signal generation task failed", {
@@ -420,134 +495,62 @@ const sendSignalToTelegram = async () => {
         // Get token symbol for button generation
         const tokenSymbol = await getTokenSymbol(signalData.token);
 
-        // Send signals to users in batches by language for better efficiency
-        const usersByLanguage = holdingUsers.reduce(
-          (acc, user) => {
-            const userLang = user.language || "en";
-            if (!acc[userLang]) {
-              acc[userLang] = [];
-            }
-            acc[userLang].push(user);
-            return acc;
-          },
-          {} as Record<string, typeof holdingUsers>,
-        );
+        // Get signal language from the stored signal data
+        const signalLanguage = (signalData.value as any)?.language || "en";
 
-        logger.info(
-          `Signal ${signalData.id} will be sent in ${Object.keys(usersByLanguage).length} different languages`,
+        // Filter users to only those who match this signal's language
+        const matchingUsers = holdingUsers.filter((user) => (user.language || "en") === signalLanguage);
+
+        if (matchingUsers.length === 0) {
+          logger.info(`No users for signal language ${signalLanguage}, skipping signal ${signalData.id}`);
+          return { signalId: signalData.id, skipped: true };
+        }
+
+        logger.info(`Sending signal ${signalData.id} in ${signalLanguage} to ${matchingUsers.length} users`, {
+          signalId: signalData.id,
+          language: signalLanguage,
+          userCount: matchingUsers.length,
+        });
+
+        // Generate buttons for this signal
+        const buttons = createPhantomButtons(signalData.token, tokenSymbol || undefined);
+
+        const result = await sendMessage(
+          matchingUsers.map((u) => u.userId),
+          escapeMarkdown(signalData.body),
           {
-            languages: Object.keys(usersByLanguage),
-            userCounts: Object.entries(usersByLanguage).map(([lang, users]) => ({
-              language: lang,
-              count: users.length,
-            })),
+            parse_mode: "Markdown",
+            buttons,
           },
         );
 
-        // Send signal to each language group
-        const languageResults = await Promise.all(
-          Object.entries(usersByLanguage).map(async ([language, users]) => {
-            try {
-              // Translate signal message for non-English languages
-              let localizedMessage = signalData.body;
+        if (!result.isOk()) {
+          logger.error(`Failed to send signal ${signalData.id} due to system error`, {
+            error: result.error,
+            signalId: signalData.id,
+            tokenAddress: signalData.token,
+            language: signalLanguage,
+            userCount: matchingUsers.length,
+          });
+          return { signalId: signalData.id, success: false, systemError: true, stats: null };
+        }
 
-              if (language !== "en") {
-                logger.debug(`Translating signal to ${language} for ${users.length} users`, {
-                  signalId: signalData.id,
-                  language,
-                  userCount: users.length,
-                });
+        const stats = result.value;
 
-                // Import translation function dynamically to avoid circular dependencies
-                const { translateTextWithLLM } = await import("./utils/language");
-                localizedMessage = await translateTextWithLLM(signalData.body, language);
-
-                logger.debug(`Signal translation completed for ${language}`, {
-                  signalId: signalData.id,
-                  language,
-                  originalLength: signalData.body.length,
-                  translatedLength: localizedMessage.length,
-                });
-              }
-
-              // Generate buttons for this language group
-              const buttons = createPhantomButtons(signalData.token, tokenSymbol || undefined);
-
-              const result = await sendMessage(
-                users.map((u) => u.userId),
-                escapeMarkdown(localizedMessage),
-                {
-                  parse_mode: "Markdown",
-                  buttons,
-                },
-              );
-
-              if (!result.isOk()) {
-                logger.error(`Failed to send signal ${signalData.id} to ${language} users due to system error`, {
-                  error: result.error,
-                  signalId: signalData.id,
-                  tokenAddress: signalData.token,
-                  language,
-                  userCount: users.length,
-                });
-                return { language, success: false, systemError: true, stats: null };
-              }
-
-              const stats = result.value;
-
-              logger.info(`Signal ${signalData.id} sent to ${language} users`, {
-                language,
-                totalUsers: stats.totalUsers,
-                successCount: stats.successCount,
-                failureCount: stats.failureCount,
-              });
-
-              return { language, success: true, systemError: false, stats };
-            } catch (error) {
-              logger.error(`Error sending signal ${signalData.id} to ${language} users`, {
-                error: error instanceof Error ? error.message : String(error),
-                signalId: signalData.id,
-                language,
-                userCount: users.length,
-              });
-              return { language, success: false, systemError: true, stats: null };
-            }
-          }),
-        );
-
-        // Aggregate results from all language groups
-        const aggregatedStats = languageResults.reduce(
-          (acc, result) => {
-            if (result.stats) {
-              acc.totalUsers += result.stats.totalUsers;
-              acc.successCount += result.stats.successCount;
-              acc.failureCount += result.stats.failureCount;
-              acc.failedUsers = acc.failedUsers.concat(result.stats.failedUsers);
-            }
-            return acc;
-          },
-          {
-            totalUsers: 0,
-            successCount: 0,
-            failureCount: 0,
-            failedUsers: [] as string[],
-          },
-        );
-
-        logger.info(`Signal ${signalData.id} sent to all users`, {
+        logger.info(`Signal ${signalData.id} sent successfully`, {
           signalId: signalData.id,
           tokenAddress: signalData.token,
-          languages: Object.keys(usersByLanguage),
-          totalUsers: aggregatedStats.totalUsers,
-          successCount: aggregatedStats.successCount,
-          failureCount: aggregatedStats.failureCount,
+          language: signalLanguage,
+          totalUsers: stats.totalUsers,
+          successCount: stats.successCount,
+          failureCount: stats.failureCount,
         });
 
         return {
           signalId: signalData.id,
           success: true,
           systemError: false,
-          stats: aggregatedStats,
+          stats,
         };
       } catch (error) {
         logger.error(`Failed to process signal ${signalData.id}`, {

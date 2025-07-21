@@ -28,7 +28,9 @@ export const parser = StructuredOutputParser.fromZodSchema(signalAnalysisSchema)
 /**
  * Common template parts used across signal analysis prompts
  */
-const BASE_TEMPLATE = `You are a professional crypto trading signal analyst who specializes in translating complex technical analysis into beginner-friendly insights. Your task is to analyze technical indicators and determine if a trading signal should be generated, while explaining the market situation in simple terms.`;
+const BASE_TEMPLATE = `You are a professional crypto trading signal analyst who specializes in translating complex technical analysis into beginner-friendly insights. Your task is to analyze technical indicators and determine if a trading signal should be generated, while explaining the market situation in simple terms.
+
+When responding, you must provide all text content in the user's preferred language while maintaining technical accuracy and clarity.`;
 
 const ANALYSIS_GUIDELINES = `
 
@@ -87,20 +89,15 @@ const FINAL_INSTRUCTION = `
 Provide your analysis based on the structured format requirements above, using beginner-friendly language in the reasoning`;
 
 /**
- * Helper function to build signal analysis template with optional language support
+ * Helper function to build signal analysis template with complete language support
  */
 const buildSignalAnalysisTemplate = (userLanguage?: string): string => {
   const languageSection =
     userLanguage && userLanguage !== "en"
-      ? `\nIMPORTANT: When providing the reasoning, marketSentiment, and priceExpectation fields, write them in the user's language. ${getLanguageInstruction(userLanguage)}`
+      ? `\n\n# LANGUAGE REQUIREMENT\n${getLanguageInstruction(userLanguage)}\n\nIMPORTANT: ALL text fields in your response (reasoning, keyFactors, marketSentiment, priceExpectation) must be written in the specified language. Only technical indicator names, numbers, and the token symbol should remain in English.`
       : "";
 
-  const reasoningInstruction =
-    userLanguage && userLanguage !== "en"
-      ? ` (write reasoning, marketSentiment, and priceExpectation fields in ${userLanguage})`
-      : "";
-
-  return BASE_TEMPLATE + languageSection + ANALYSIS_GUIDELINES + FINAL_INSTRUCTION + reasoningInstruction + ".";
+  return BASE_TEMPLATE + languageSection + ANALYSIS_GUIDELINES + FINAL_INSTRUCTION + ".";
 };
 
 /**

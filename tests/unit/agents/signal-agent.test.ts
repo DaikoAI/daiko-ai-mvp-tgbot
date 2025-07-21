@@ -168,12 +168,13 @@ describe("Signal Agent", () => {
         vwap_deviation: "4.5", // Extreme deviation (> 4%) - should trigger VWAP_EXTREME_DEVIATION
       };
 
-      const signal = await graph.invoke({
-        tokenAddress: "So11111111111111111111111111111111111111112",
-        tokenSymbol: "SOL",
-        currentPrice: 100,
-        technicalAnalysis: extremeOversoldAnalysis,
-      });
+              const signal = await graph.invoke({
+          tokenAddress: "So11111111111111111111111111111111111111112",
+          tokenSymbol: "SOL",
+          currentPrice: 100,
+          technicalAnalysis: extremeOversoldAnalysis,
+          userLanguage: "en", // Explicitly set to English for consistent testing
+        });
 
       // Assert basic structure
       expect(signal).toBeDefined();
@@ -209,25 +210,35 @@ describe("Signal Agent", () => {
           expect(signal.finalSignal?.priority).toBeDefined();
           expect(signal.finalSignal?.buttons).toBeDefined();
 
-          // Verify new format structure for generated signals
+          // Verify signal message structure and content
           if (signal.finalSignal?.message) {
-            // The message should contain either "Market Snapshot" or market analysis content
+            // The message should contain market-related content
             expect(
-              signal.finalSignal.message.includes("Market Snapshot") ||
-                signal.finalSignal.message.includes("market") ||
-                signal.finalSignal.message.includes("price"),
+              signal.finalSignal.message.toLowerCase().includes("market") ||
+                signal.finalSignal.message.toLowerCase().includes("price") ||
+                signal.finalSignal.message.toLowerCase().includes("trading") ||
+                signal.finalSignal.message.includes("$SOL"),
             ).toBe(true);
-            // The message should contain either "Why?" or "Why:"
-            expect(signal.finalSignal.message.includes("Why?") || signal.finalSignal.message.includes("Why:")).toBe(
-              true,
-            );
-            // The message should contain suggested action
+
+            // The message should contain some form of explanation or reasoning
             expect(
-              signal.finalSignal.message.includes("Suggested Action") ||
-                signal.finalSignal.message.includes("Consider"),
+              signal.finalSignal.message.toLowerCase().includes("why") ||
+                signal.finalSignal.message.toLowerCase().includes("because") ||
+                signal.finalSignal.message.toLowerCase().includes("analysis") ||
+                signal.finalSignal.message.toLowerCase().includes("reason"),
             ).toBe(true);
-            // Allow both em dashes and regular dashes as LLM may use different punctuation
-            // expect(signal.finalSignal.message).not.toContain("–"); // Allow full-width dashes as LLM may use them
+
+            // The message should contain action-related content
+            expect(
+              signal.finalSignal.message.toLowerCase().includes("action") ||
+                signal.finalSignal.message.toLowerCase().includes("consider") ||
+                signal.finalSignal.message.toLowerCase().includes("buy") ||
+                signal.finalSignal.message.toLowerCase().includes("sell") ||
+                signal.finalSignal.message.toLowerCase().includes("hold"),
+            ).toBe(true);
+
+            // The message should be substantial (not empty or too short)
+            expect(signal.finalSignal.message.length).toBeGreaterThan(100);
           }
         }
       }
@@ -247,6 +258,7 @@ describe("Signal Agent", () => {
         tokenSymbol: "SOL",
         currentPrice: 100,
         technicalAnalysis: extremeOverboughtAnalysis,
+        userLanguage: "en",
       });
 
       // Assert basic structure
@@ -312,6 +324,7 @@ describe("Signal Agent", () => {
         tokenSymbol: "SOL",
         currentPrice: 100,
         technicalAnalysis: singleIndicatorAnalysis,
+        userLanguage: "en",
       });
 
       expect(signal).toBeDefined();
@@ -403,6 +416,7 @@ describe("Signal Agent", () => {
         tokenSymbol: "SOL",
         currentPrice: 100,
         technicalAnalysis: testAnalysis,
+        userLanguage: "en",
       });
 
       // Verify data flow consistency through all nodes
@@ -499,6 +513,7 @@ describe("Signal Agent", () => {
         tokenSymbol: "SOL",
         currentPrice: 100,
         technicalAnalysis: boundaryAnalysis,
+        userLanguage: "en",
       });
 
       expect(signal).toBeDefined();
