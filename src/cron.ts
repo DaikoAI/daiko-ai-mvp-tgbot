@@ -11,18 +11,18 @@ import { sendMessage } from "./lib/telegram/utils";
 import { fetchMultipleTokenOHLCV } from "./lib/vybe";
 import { escapeMarkdown } from "./utils";
 import {
-  batchUpsert,
-  cleanupAllTokensOHLCVByCount,
-  createSignal,
-  createTechnicalAnalysis,
-  getRecentSignals,
-  getTokenOHLCV,
-  getTokens,
-  getTokenSymbol,
-  getUnprocessedTechnicalAnalyses,
-  getUsersHoldingToken,
-  markTechnicalAnalysisAsProcessed,
-  syncAllUserTokenHoldings,
+    batchUpsert,
+    cleanupAllTokensOHLCVByCount,
+    createSignal,
+    createTechnicalAnalysis,
+    getRecentSignals,
+    getTokenOHLCV,
+    getTokens,
+    getTokenSymbol,
+    getUnprocessedTechnicalAnalyses,
+    getUsersHoldingToken,
+    markTechnicalAnalysisAsProcessed,
+    syncAllUserTokenHoldings,
 } from "./utils/db";
 import { logger } from "./utils/logger";
 
@@ -311,20 +311,47 @@ const generateSignalTask = async () => {
     // 各トークンに対してシグナル生成を並列実行
     const signalPromises = unprocessedAnalyses.map(async (analysis) => {
       try {
-        // Convert technical analysis to required format
+        // Helper function to safely parse numeric values
+        const safeParseFloat = (value: string | null | undefined, fallback?: number): number | undefined => {
+          if (value === null || value === undefined || value === "") return fallback;
+          const parsed = parseFloat(value);
+          return !isNaN(parsed) && isFinite(parsed) ? parsed : fallback;
+        };
+
+        // Convert technical analysis to required format with robust validation
         const technicalAnalysisResult = {
-          atrPercent: parseFloat(analysis.atr_percent || "2"),
-          adx: parseFloat(analysis.adx || "20"),
-          rsi: parseFloat(analysis.rsi || "50"),
-          vwap: parseFloat(analysis.vwap || "0"),
-          vwapDeviation: parseFloat(analysis.vwap_deviation || "0"),
-          obv: parseFloat(analysis.obv || "0"),
-          obvZScore: parseFloat(analysis.obv_zscore || "0"),
-          percentB: parseFloat(analysis.percent_b || "0.5"),
-          bbWidth: parseFloat(analysis.bb_width || "0"),
-          atr: parseFloat(analysis.atr || "0"),
+          atrPercent: safeParseFloat(analysis.atr_percent),
+          adx: safeParseFloat(analysis.adx),
+          rsi: safeParseFloat(analysis.rsi),
+          vwap: safeParseFloat(analysis.vwap),
+          vwapDeviation: safeParseFloat(analysis.vwap_deviation),
+          obv: safeParseFloat(analysis.obv),
+          obvZScore: safeParseFloat(analysis.obv_zscore),
+          percentB: safeParseFloat(analysis.percent_b),
+          bbWidth: safeParseFloat(analysis.bb_width),
+          atr: safeParseFloat(analysis.atr),
           adxDirection: (analysis.adx_direction as "UP" | "DOWN" | "NEUTRAL") || "NEUTRAL",
         };
+
+        // Validate that we have sufficient valid indicators for reliable analysis
+        const validIndicators = Object.values(technicalAnalysisResult).filter(
+          (val) => val !== null && val !== undefined && !isNaN(val as number),
+        ).length;
+
+        if (validIndicators < 3) {
+          logger.warn("Insufficient valid technical indicators for signal generation", {
+            tokenAddress: analysis.token,
+            validIndicators,
+            totalIndicators: Object.keys(technicalAnalysisResult).length,
+            rsi: analysis.rsi,
+            adx: analysis.adx,
+            atrPercent: analysis.atr_percent,
+            percentB: analysis.percent_b,
+          });
+          // Mark as processed to avoid reprocessing
+          await markTechnicalAnalysisAsProcessed(analysis.id);
+          return null;
+        }
 
         // Check if signal generation should be skipped due to cooldown
         if (await shouldSkipDueToCooldown(analysis.token, technicalAnalysisResult)) {
@@ -390,118 +417,165 @@ const sendSignalToTelegram = async () => {
 
         logger.info(`Sending signal ${signalData.id} to ${holdingUsers.length} users holding token`);
 
-        // Extract buttons from signal value or generate new ones
-        let buttons: { text: string; url: string }[] = [];
+        // Get token symbol for button generation
+        const tokenSymbol = await getTokenSymbol(signalData.token);
 
-        // Get token symbol for button generation (if buttons are empty, regenerate them)
-        if (buttons.length === 0) {
-          const tokenSymbol = await getTokenSymbol(signalData.token);
-          buttons = createPhantomButtons(signalData.token, tokenSymbol || undefined);
-        }
+        // Send signals to users in batches by language for better efficiency
+        const usersByLanguage = holdingUsers.reduce(
+          (acc, user) => {
+            const userLang = user.language || "en";
+            if (!acc[userLang]) {
+              acc[userLang] = [];
+            }
+            acc[userLang].push(user);
+            return acc;
+          },
+          {} as Record<string, typeof holdingUsers>,
+        );
 
-        const result = await sendMessage(
-          holdingUsers.map((u) => u.userId),
-          escapeMarkdown(signalData.body),
+        logger.info(
+          `Signal ${signalData.id} will be sent in ${Object.keys(usersByLanguage).length} different languages`,
           {
-            parse_mode: "Markdown",
-            buttons,
+            languages: Object.keys(usersByLanguage),
+            userCounts: Object.entries(usersByLanguage).map(([lang, users]) => ({
+              language: lang,
+              count: users.length,
+            })),
           },
         );
 
-        if (!result.isOk()) {
-          logger.error(`Failed to send signal ${signalData.id} due to system error`, {
-            error: result.error,
-            signalId: signalData.id,
-            tokenAddress: signalData.token,
-          });
-          return { signalId: signalData.id, success: false, systemError: true, stats: null };
-        }
+        // Send signal to each language group
+        const languageResults = await Promise.all(
+          Object.entries(usersByLanguage).map(async ([language, users]) => {
+            try {
+              // Translate signal message for non-English languages
+              let localizedMessage = signalData.body;
 
-        const stats = result.value;
+              if (language !== "en") {
+                logger.debug(`Translating signal to ${language} for ${users.length} users`, {
+                  signalId: signalData.id,
+                  language,
+                  userCount: users.length,
+                });
 
-        // Check if any messages were successfully delivered
-        if (stats.successCount === 0) {
-          logger.error(`Signal ${signalData.id} failed to deliver to any users`, {
-            signalId: signalData.id,
-            tokenAddress: signalData.token,
-            totalUsers: stats.totalUsers,
-            failureCount: stats.failureCount,
-            failedUserIds: stats.failedUsers,
-            firstError: stats.results.find((r) => !r.success)?.error,
-          });
-          return { signalId: signalData.id, success: false, systemError: false, stats };
-        }
+                // Import translation function dynamically to avoid circular dependencies
+                const { translateTextWithLLM } = await import("./utils/language");
+                localizedMessage = await translateTextWithLLM(signalData.body, language);
 
-        // Log success with detailed stats
-        logger.info(`Signal ${signalData.id} broadcast completed`, {
+                logger.debug(`Signal translation completed for ${language}`, {
+                  signalId: signalData.id,
+                  language,
+                  originalLength: signalData.body.length,
+                  translatedLength: localizedMessage.length,
+                });
+              }
+
+              // Generate buttons for this language group
+              const buttons = createPhantomButtons(signalData.token, tokenSymbol || undefined);
+
+              const result = await sendMessage(
+                users.map((u) => u.userId),
+                escapeMarkdown(localizedMessage),
+                {
+                  parse_mode: "Markdown",
+                  buttons,
+                },
+              );
+
+              if (!result.isOk()) {
+                logger.error(`Failed to send signal ${signalData.id} to ${language} users due to system error`, {
+                  error: result.error,
+                  signalId: signalData.id,
+                  tokenAddress: signalData.token,
+                  language,
+                  userCount: users.length,
+                });
+                return { language, success: false, systemError: true, stats: null };
+              }
+
+              const stats = result.value;
+
+              logger.info(`Signal ${signalData.id} sent to ${language} users`, {
+                language,
+                totalUsers: stats.totalUsers,
+                successCount: stats.successCount,
+                failureCount: stats.failureCount,
+              });
+
+              return { language, success: true, systemError: false, stats };
+            } catch (error) {
+              logger.error(`Error sending signal ${signalData.id} to ${language} users`, {
+                error: error instanceof Error ? error.message : String(error),
+                signalId: signalData.id,
+                language,
+                userCount: users.length,
+              });
+              return { language, success: false, systemError: true, stats: null };
+            }
+          }),
+        );
+
+        // Aggregate results from all language groups
+        const aggregatedStats = languageResults.reduce(
+          (acc, result) => {
+            if (result.stats) {
+              acc.totalUsers += result.stats.totalUsers;
+              acc.successCount += result.stats.successCount;
+              acc.failureCount += result.stats.failureCount;
+              acc.failedUsers = acc.failedUsers.concat(result.stats.failedUsers);
+            }
+            return acc;
+          },
+          {
+            totalUsers: 0,
+            successCount: 0,
+            failureCount: 0,
+            failedUsers: [] as string[],
+          },
+        );
+
+        logger.info(`Signal ${signalData.id} sent to all users`, {
           signalId: signalData.id,
           tokenAddress: signalData.token,
-          totalUsers: stats.totalUsers,
-          successCount: stats.successCount,
-          failureCount: stats.failureCount,
-          successRate: stats.totalUsers > 0 ? ((stats.successCount / stats.totalUsers) * 100).toFixed(1) + "%" : "0%",
+          languages: Object.keys(usersByLanguage),
+          totalUsers: aggregatedStats.totalUsers,
+          successCount: aggregatedStats.successCount,
+          failureCount: aggregatedStats.failureCount,
         });
 
-        // Log partial failures if they exist
-        if (stats.failureCount > 0) {
-          logger.warn(`Signal ${signalData.id} had ${stats.failureCount} delivery failures`, {
-            signalId: signalData.id,
-            failedUserIds: stats.failedUsers,
-            sampleErrors: stats.results
-              .filter((r) => !r.success)
-              .slice(0, 3)
-              .map((r) => r.error),
-          });
-        }
-
-        return { signalId: signalData.id, success: true, systemError: false, stats };
+        return {
+          signalId: signalData.id,
+          success: true,
+          systemError: false,
+          stats: aggregatedStats,
+        };
       } catch (error) {
-        logger.error(`Error processing signal ${signalData.id}:`, {
+        logger.error(`Failed to process signal ${signalData.id}`, {
           error: error instanceof Error ? error.message : String(error),
           signalId: signalData.id,
+          tokenAddress: signalData.token,
         });
         return { signalId: signalData.id, success: false, systemError: true, stats: null };
       }
     });
 
-    // 全ての処理を並列実行
-    const results = await Promise.allSettled(signalPromises);
+    // 並列実行した結果を取得
+    const results = await Promise.all(signalPromises);
+    const successfulSends = results.filter((r) => r.success && !r.systemError);
+    const failedSends = results.filter((r) => !r.success || r.systemError);
+    const skippedSignals = results.filter((r) => "skipped" in r && r.skipped);
 
-    // 結果を集計
-    const processedResults = results
-      .filter(
-        (r): r is PromiseFulfilledResult<NonNullable<Awaited<(typeof signalPromises)[0]>>> =>
-          r.status === "fulfilled" && r.value !== undefined,
-      )
-      .map((r) => r.value);
-
-    const totalSignals = processedResults.length;
-    const skippedSignals = processedResults.filter((r) => "skipped" in r && r.skipped).length;
-    const successfulSignals = processedResults.filter((r) => "success" in r && r.success).length;
-    const failedSignals = processedResults.filter((r) => "success" in r && !r.success).length;
-    const systemErrors = processedResults.filter((r) => "systemError" in r && r.systemError).length;
-
-    // 詳細な統計情報をログ出力
-    logger.info("Signal-to-telegram task completed with detailed statistics", {
-      totalSignals,
-      skippedSignals: skippedSignals,
-      successfulSignals,
-      failedSignals,
-      systemErrors,
-      successRate:
-        totalSignals > 0 ? ((successfulSignals / (totalSignals - skippedSignals)) * 100).toFixed(1) + "%" : "0%",
+    logger.info("Signal-to-telegram task completed", {
+      totalSignals: recentSignals.length,
+      successfulSends: successfulSends.length,
+      failedSends: failedSends.length,
+      skippedSignals: skippedSignals.length,
+      totalUsersSent: successfulSends.reduce((sum, r) => sum + (r.stats?.totalUsers || 0), 0),
+      totalSuccessful: successfulSends.reduce((sum, r) => sum + (r.stats?.successCount || 0), 0),
+      totalFailed: successfulSends.reduce((sum, r) => sum + (r.stats?.failureCount || 0), 0),
     });
-
-    // エラーがある場合は警告を出力
-    if (failedSignals > 0 || systemErrors > 0) {
-      logger.warn(`Signal delivery had issues`, {
-        failedSignals,
-        systemErrors,
-        failedSignalIds: processedResults.filter((r) => "success" in r && !r.success).map((r) => r.signalId),
-      });
-    }
   } catch (error) {
-    logger.error("Signal-to-telegram task failed:", {
+    logger.error("Signal-to-telegram task failed", {
       error: error instanceof Error ? error.message : String(error),
     });
   }
