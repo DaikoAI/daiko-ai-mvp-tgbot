@@ -15,6 +15,13 @@
       "when": 1752520081415,
       "tag": "0001_slimy_bloodaxe",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1753098134329,
+      "tag": "0002_fantastic_black_tarantula",
+      "breakpoints": true
     }
   ]
 }

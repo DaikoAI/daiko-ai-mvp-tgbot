@@ -41,11 +41,15 @@ export const generateSignal = async (input: {
   tokenSymbol: string;
   currentPrice: number;
   technicalAnalysis: any;
+  userLanguage?: string; // NEW: Optional user language preference
 }) => {
+  const DEFAULT_USER_LANGUAGE = "en";
+
   logger.info("Starting signal generation", {
     tokenAddress: input.tokenAddress,
     tokenSymbol: input.tokenSymbol,
     currentPrice: input.currentPrice,
+    userLanguage: input.userLanguage || DEFAULT_USER_LANGUAGE,
   });
 
   try {
@@ -56,6 +60,7 @@ export const generateSignal = async (input: {
       tokenSymbol: input.tokenSymbol,
       currentPrice: input.currentPrice,
       technicalAnalysis: input.technicalAnalysis,
+      userLanguage: input.userLanguage || DEFAULT_USER_LANGUAGE, // Default to English
     });
 
     logger.info("Signal generation completed", {
@@ -63,6 +68,7 @@ export const generateSignal = async (input: {
       hasSignal: result.finalSignal?.level > 0,
       signalLevel: result.finalSignal?.level,
       priority: result.finalSignal?.priority,
+      userLanguage: input.userLanguage || DEFAULT_USER_LANGUAGE,
     });
 
     return result;
@@ -70,6 +76,7 @@ export const generateSignal = async (input: {
     logger.error("Signal generation failed", {
       tokenAddress: input.tokenAddress,
       error: error instanceof Error ? error.message : String(error),
+      userLanguage: input.userLanguage || DEFAULT_USER_LANGUAGE,
     });
 
     throw error;

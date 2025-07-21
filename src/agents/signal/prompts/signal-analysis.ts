@@ -1,6 +1,7 @@
 import { StructuredOutputParser } from "@langchain/core/output_parsers";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { z } from "zod";
+import { getLanguageInstruction } from "../../../utils/language";
 
 /**
  * Signal Analysis Schema
@@ -25,39 +26,11 @@ export const signalAnalysisSchema = z.object({
 export const parser = StructuredOutputParser.fromZodSchema(signalAnalysisSchema);
 
 /**
- * Signal Analysis Prompts
- *
- * Various prompt templates used in the signal generation process
- * - LLM analysis prompt
- * - Evidence evaluation prompt
- * - Signal formatting prompt
- *
- * Note: Token symbols should always be displayed with $ prefix and in uppercase (e.g., $BTC, $ETH)
+ * Common template parts used across signal analysis prompts
  */
+const BASE_TEMPLATE = `You are a professional crypto trading signal analyst who specializes in translating complex technical analysis into beginner-friendly insights. Your task is to analyze technical indicators and determine if a trading signal should be generated, while explaining the market situation in simple terms.`;
 
-/**
- * LLM Signal Analysis Prompt
- * Composite analysis of technical indicators for signal generation (with beginner-friendly interpretation)
- */
-export const signalAnalysisPrompt = new PromptTemplate({
-  inputVariables: [
-    "tokenSymbol",
-    "tokenAddress",
-    "currentPrice",
-    "timestamp",
-    "rsi",
-    "vwapDeviation",
-    "percentB",
-    "adx",
-    "atrPercent",
-    "obvZScore",
-    "triggeredIndicators",
-    "signalCandidates",
-    "confluenceScore",
-    "riskLevel",
-    "formatInstructions",
-  ],
-  template: `You are a professional crypto trading signal analyst who specializes in translating complex technical analysis into beginner-friendly insights. Your task is to analyze technical indicators and determine if a trading signal should be generated, while explaining the market situation in simple terms.
+const ANALYSIS_GUIDELINES = `
 
 ## Analysis Guidelines
 
@@ -107,10 +80,79 @@ Consider:
 3. Risk-reward potential for different trading timeframes
 4. Market volatility and its impact on trade safety
 
-{formatInstructions}
+{formatInstructions}`;
 
-Provide your analysis based on the structured format requirements above, using beginner-friendly language in the reasoning.`,
+const FINAL_INSTRUCTION = `
+
+Provide your analysis based on the structured format requirements above, using beginner-friendly language in the reasoning`;
+
+/**
+ * Helper function to build signal analysis template with optional language support
+ */
+const buildSignalAnalysisTemplate = (userLanguage?: string): string => {
+  const languageSection =
+    userLanguage && userLanguage !== "en"
+      ? `\nIMPORTANT: When providing the reasoning, marketSentiment, and priceExpectation fields, write them in the user's language. ${getLanguageInstruction(userLanguage)}`
+      : "";
+
+  const reasoningInstruction =
+    userLanguage && userLanguage !== "en"
+      ? ` (write reasoning, marketSentiment, and priceExpectation fields in ${userLanguage})`
+      : "";
+
+  return BASE_TEMPLATE + languageSection + ANALYSIS_GUIDELINES + FINAL_INSTRUCTION + reasoningInstruction + ".";
+};
+
+/**
+ * Standard input variables for signal analysis prompts
+ */
+const SIGNAL_ANALYSIS_INPUT_VARIABLES = [
+  "tokenSymbol",
+  "tokenAddress",
+  "currentPrice",
+  "timestamp",
+  "rsi",
+  "vwapDeviation",
+  "percentB",
+  "adx",
+  "atrPercent",
+  "obvZScore",
+  "triggeredIndicators",
+  "signalCandidates",
+  "confluenceScore",
+  "riskLevel",
+  "formatInstructions",
+];
+
+/**
+ * Signal Analysis Prompts
+ *
+ * Various prompt templates used in the signal generation process
+ * - LLM analysis prompt
+ * - Evidence evaluation prompt
+ * - Signal formatting prompt
+ *
+ * Note: Token symbols should always be displayed with $ prefix and in uppercase (e.g., $BTC, $ETH)
+ */
+
+/**
+ * LLM Signal Analysis Prompt
+ * Composite analysis of technical indicators for signal generation (with beginner-friendly interpretation)
+ */
+export const signalAnalysisPrompt = new PromptTemplate({
+  inputVariables: SIGNAL_ANALYSIS_INPUT_VARIABLES,
+  template: buildSignalAnalysisTemplate(),
 });
+
+/**
+ * Create language-aware signal analysis prompt
+ */
+export const createSignalAnalysisPrompt = (userLanguage?: string): PromptTemplate => {
+  return new PromptTemplate({
+    inputVariables: SIGNAL_ANALYSIS_INPUT_VARIABLES,
+    template: buildSignalAnalysisTemplate(userLanguage),
+  });
+};
 
 /**
  * Evidence Evaluation Prompt
@@ -206,10 +248,10 @@ Write the entire output in **{language}**. Do NOT mix languages except for unavo
 
 # Message Format Requirements
 
-Create a message following this structure:
-- First line: [ACTION_EMOJI] **[ACTION] TOKEN_SYMBOL** - RISK_LEVEL Risk
-- Second line: Price: \`$PRICE\` Confidence: **CONFIDENCE_PCT %**
-- Third line: Timeframe: TIMEFRAME_LABEL (TIMEFRAME_NOTE)
+Create a message following this improved structure:
+- First line: [ACTION_EMOJI] **[ACTION] $TOKEN_SYMBOL**
+- Second line: 📊 Price: **$PRICE** | 🎯 Confidence: **CONFIDENCE%** | ⚠️ Risk: **RISK_LEVEL**
+- Third line: ⏰ Timeframe: **TIMEFRAME_LABEL** (TIMEFRAME_NOTE)
 - Market Snapshot section with 1-2 sentences using analogies
 - Why section with up to 3 technical indicator explanations
 - Suggested Action section with concrete advice
@@ -218,13 +260,15 @@ Create a message following this structure:
 # Formatting Rules
 - ACTION_EMOJI: BUY → 🚀, SELL → 🚨, NEUTRAL/HOLD → 📊
 - ACTION: Use the direction value (BUY/SELL/HOLD)
-- TOKEN_SYMBOL: Use tokenSymbol without $ prefix
+- TOKEN_SYMBOL: Use tokenSymbol with $ prefix, uppercase (e.g., $BONK)
+- PRICE: Format with appropriate decimal places (max 8 digits, prefer 5 for readability)
+- CONFIDENCE: Integer percentage without space (e.g., 70%)
 - RISK_LEVEL: Capitalize first letter of riskLevel (LOW → Low, MEDIUM → Medium, HIGH → High)
 - TIMEFRAME_LABEL: SHORT → Short-term, MEDIUM → Mid-term, LONG → Long-term
 - TIMEFRAME_NOTE:
-  - SHORT → "1-4 h re-check recommended"
-  - MEDIUM → "4-12 h re-check recommended"
-  - LONG → "12-24 h re-check recommended"
+  - SHORT → "1-4h re-check"
+  - MEDIUM → "4-12h re-check"
+  - LONG → "12-24h re-check"
 - Use half-width dashes (-) throughout, never full-width (–)
 - Write all explanations in {language}
 

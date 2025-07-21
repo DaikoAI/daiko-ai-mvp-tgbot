@@ -11,18 +11,18 @@ import { sendMessage } from "./lib/telegram/utils";
 import { fetchMultipleTokenOHLCV } from "./lib/vybe";
 import { escapeMarkdown } from "./utils";
 import {
-    batchUpsert,
-    cleanupAllTokensOHLCVByCount,
-    createSignal,
-    createTechnicalAnalysis,
-    getRecentSignals,
-    getTokenOHLCV,
-    getTokens,
-    getTokenSymbol,
-    getUnprocessedTechnicalAnalyses,
-    getUsersHoldingToken,
-    markTechnicalAnalysisAsProcessed,
-    syncAllUserTokenHoldings,
+  batchUpsert,
+  cleanupAllTokensOHLCVByCount,
+  createSignal,
+  createTechnicalAnalysis,
+  getRecentSignals,
+  getTokenOHLCV,
+  getTokens,
+  getTokenSymbol,
+  getUnprocessedTechnicalAnalyses,
+  getUsersHoldingToken,
+  markTechnicalAnalysisAsProcessed,
+  syncAllUserTokenHoldings,
 } from "./utils/db";
 import { logger } from "./utils/logger";
 

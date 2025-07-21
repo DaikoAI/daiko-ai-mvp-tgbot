@@ -33,6 +33,9 @@ export const users = pgTable(
     setupCompleted: boolean("setup_completed").default(false),
     waitingForInput: text("waiting_for_input"),
 
+    // Language preference
+    language: text("language").default("en"), // Default to English
+
     // Timestamps
     lastUpdated: timestamp("last_updated", { withTimezone: true })
       .defaultNow()
@@ -45,6 +48,7 @@ export const users = pgTable(
     index("users_wallet_address_idx").on(table.walletAddress),
     index("users_setup_completed_idx").on(table.setupCompleted),
     index("users_created_at_idx").on(table.createdAt),
+    index("users_language_idx").on(table.language), // 言語別クエリの最適化
   ],
 );
 

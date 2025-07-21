@@ -644,6 +644,7 @@ export const getUsersHoldingToken = async (tokenAddress: string): Promise<User[]
       currentSetupStep: users.currentSetupStep,
       setupCompleted: users.setupCompleted,
       waitingForInput: users.waitingForInput,
+      language: users.language, // NEW: Add language column
       lastUpdated: users.lastUpdated,
       createdAt: users.createdAt,
     })

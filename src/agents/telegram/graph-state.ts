@@ -1,7 +1,6 @@
 import type { BaseMessage } from "@langchain/core/messages";
 import { Annotation, MemorySaver, messagesStateReducer } from "@langchain/langgraph";
-import type { DAS } from "helius-sdk";
-import type { User } from "../../db";
+import type { User, UserTokenHolding } from "../../db";
 
 export const memory = new MemorySaver();
 
@@ -11,7 +10,7 @@ export const graphState = Annotation.Root({
     default: () => [],
   }),
 
-  userAssets: Annotation<DAS.GetAssetResponse[]>({
+  userAssets: Annotation<UserTokenHolding[]>({
     reducer: (oldValue, newValue) => newValue ?? oldValue,
     default: () => [],
   }),

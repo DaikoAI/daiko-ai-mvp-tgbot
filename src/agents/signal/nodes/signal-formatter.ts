@@ -1,43 +1,56 @@
 import { z } from "zod";
 import { createPhantomButtons } from "../../../lib/phantom";
+import { getLanguageDisplayName } from "../../../utils/language";
 import { logger } from "../../../utils/logger";
+import { safeParseNumber } from "../../../utils/number";
 import { gpt4oMini } from "../../model";
 import type { SignalGraphState } from "../graph-state";
 import { signalFormattingPrompt } from "../prompts/signal-analysis";
 
 /**
  * Button Schema for Telegram Inline Keyboard
- * Note: OpenAI Structured Outputs requires .optional().nullable() instead of just .optional()
+ * Fixed schema for OpenAI structured output compatibility
  */
-const ButtonSchema = z.object({
+const buttonSchema = z.object({
   text: z.string(),
-  url: z.string().optional().nullable(),
-  callback_data: z.string().optional().nullable(),
+  url: z.string().nullable().optional(),
+  callback_data: z.string().nullable().optional(),
 });
 
 /**
- * Signal Formatting Schema
  * Zod schema for validating structured output from LLM
  */
-const SignalFormattingSchema = z.object({
+const signalFormattingSchema = z.object({
   level: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   title: z.string(),
   message: z.string(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
   tags: z.array(z.string()),
-  buttons: z.array(ButtonSchema).optional(),
+  buttons: z.array(buttonSchema).nullable().optional(),
 });
 
 /**
  * Simple template-based signal formatter (LLM-free fallback)
  */
 const createSimpleSignalResponse = (state: SignalGraphState) => {
-  const { signalDecision, tokenSymbol, tokenAddress, currentPrice } = state;
+  const { signalDecision, tokenSymbol, tokenAddress, currentPrice, userLanguage } = state;
 
   if (!signalDecision) {
     // fallback safety – should not happen as caller checks existence
-    return createNoSignalResponse(tokenAddress, tokenSymbol);
+    return createNoSignalResponse(tokenAddress, tokenSymbol, userLanguage);
   }
+
+  // English base text (will be translated by LLM if needed)
+  const text = {
+    price: "Price",
+    confidence: "Confidence",
+    risk: "Risk",
+    timeframe: "Timeframe",
+    marketSnapshot: "Market Snapshot",
+    why: "Why?",
+    suggestedAction: "Suggested Action",
+    dyor: "DYOR - Always do your own research.",
+  };
 
   // Mapping helpers --------------------------------------------------
   const actionEmoji = signalDecision.direction === "BUY" ? "🚀" : signalDecision.direction === "SELL" ? "🚨" : "📊";
@@ -51,10 +64,21 @@ const createSimpleSignalResponse = (state: SignalGraphState) => {
         : "Long-term";
   const timeframeNote =
     signalDecision.timeframe === "SHORT"
-      ? "1-4 h re-check recommended"
+      ? "1-4h re-check"
       : signalDecision.timeframe === "MEDIUM"
-        ? "4-12 h re-check recommended"
-        : "12-24 h re-check recommended";
+        ? "4-12h re-check"
+        : "12-24h re-check";
+
+  // Format price with appropriate decimal places
+  const formatPrice = (price: number): string => {
+    if (price >= 1) {
+      return price.toFixed(2);
+    } else if (price >= 0.01) {
+      return price.toFixed(4);
+    } else {
+      return price.toFixed(8).replace(/\.?0+$/, "");
+    }
+  };
 
   // Build bullet list for Why section (max 3) --------------------------------
   const buildIndicatorBullets = () => {
@@ -63,28 +87,130 @@ const createSimpleSignalResponse = (state: SignalGraphState) => {
 
     if (!ta) return bullets;
 
-    // RSI
-    if (ta.rsi !== null && ta.rsi !== undefined) {
-      const rsiVal = Number(ta.rsi).toFixed(0);
-      const interpretation = Number(ta.rsi) >= 70 ? "overbought" : Number(ta.rsi) <= 30 ? "oversold" : "neutral";
-      bullets.push(`RSI ${rsiVal} - ${interpretation}`);
+    // Helper function to validate and format technical indicators
+    const validIndicators: Array<{ name: string; value: number; condition: string }> = [];
+
+    // RSI validation and interpretation
+    const rsiValue = safeParseNumber(ta.rsi);
+    if (rsiValue !== null) {
+      let condition = "";
+      if (rsiValue >= 80) condition = "extremely overbought conditions favor sellers";
+      else if (rsiValue >= 70) condition = "overbought conditions favor sellers";
+      else if (rsiValue <= 20) condition = "extremely oversold conditions favor buyers";
+      else if (rsiValue <= 30) condition = "oversold conditions favor buyers";
+      else if (rsiValue >= 45 && rsiValue <= 55) condition = "neutral momentum, no strong bias";
+      else condition = rsiValue > 50 ? "slightly bullish momentum" : "slightly bearish momentum";
+
+      validIndicators.push({
+        name: `RSI ${rsiValue.toFixed(0)}`,
+        value: rsiValue,
+        condition: condition,
+      });
     }
 
-    // Bollinger percent_b
-    if (ta.percent_b !== null && ta.percent_b !== undefined) {
-      const pB = Number(ta.percent_b);
-      if (pB >= 1.0) bullets.push(`Bollinger +2σ breakout - price above upper band`);
-      else if (pB <= 0.0) bullets.push(`Bollinger -2σ touch - price near lower band`);
+    // Bollinger Bands %B validation and interpretation
+    const percentB = safeParseNumber(ta.percent_b);
+    if (percentB !== null) {
+      let condition = "";
+      if (percentB >= 1.0) condition = "price breaking above upper band (potential reversal)";
+      else if (percentB >= 0.8) condition = "approaching overbought territory";
+      else if (percentB <= 0.0) condition = "price touching lower band (potential support)";
+      else if (percentB <= 0.2) condition = "approaching oversold territory";
+      else condition = `price within normal trading range (${(percentB * 100).toFixed(0)}% of band)`;
+
+      validIndicators.push({
+        name: `Bollinger %B ${(percentB * 100).toFixed(0)}%`,
+        value: percentB,
+        condition: condition,
+      });
     }
 
-    // ADX
-    if (ta.adx !== null && ta.adx !== undefined) {
-      const adxVal = Number(ta.adx).toFixed(0);
-      const strength = Number(ta.adx) >= 25 ? "strong trend" : "weak trend";
-      bullets.push(`ADX ${adxVal} - ${strength}`);
+    // ADX validation and interpretation
+    const adxValue = safeParseNumber(ta.adx);
+    if (adxValue !== null) {
+      let condition = "";
+      if (adxValue >= 50) condition = "extremely strong trend - high conviction trade";
+      else if (adxValue >= 25) condition = "strong trend developing";
+      else if (adxValue >= 15) condition = "moderate trend strength building";
+      else condition = "weak trend - range-bound market";
+
+      // Include direction if available
+      const direction = ta.adx_direction || "NEUTRAL";
+      if (direction !== "NEUTRAL" && adxValue >= 20) {
+        condition += ` (${direction.toLowerCase()}ward)`;
+      }
+
+      validIndicators.push({
+        name: `ADX ${adxValue.toFixed(0)}`,
+        value: adxValue,
+        condition: condition,
+      });
     }
 
-    return bullets.slice(0, 3);
+    // VWAP Deviation validation and interpretation
+    const vwapDev = safeParseNumber(ta.vwap_deviation);
+    if (vwapDev !== null) {
+      const absDeviation = Math.abs(vwapDev);
+      let condition = "";
+      if (absDeviation >= 10) condition = `extreme ${vwapDev > 0 ? "premium" : "discount"} to volume-weighted average`;
+      else if (absDeviation >= 5) condition = `significant ${vwapDev > 0 ? "premium" : "discount"} to VWAP`;
+      else if (absDeviation >= 2) condition = `moderate ${vwapDev > 0 ? "premium" : "discount"} to fair value`;
+      else condition = "trading near volume-weighted fair value";
+
+      validIndicators.push({
+        name: `VWAP Dev ${vwapDev > 0 ? "+" : ""}${vwapDev.toFixed(1)}%`,
+        value: absDeviation,
+        condition: condition,
+      });
+    }
+
+    // OBV Z-Score validation and interpretation
+    const obvZScore = safeParseNumber(ta.obv_zscore);
+    if (obvZScore !== null) {
+      const absZScore = Math.abs(obvZScore);
+      let condition = "";
+      if (absZScore >= 2.5) condition = `extreme volume ${obvZScore > 0 ? "accumulation" : "distribution"} detected`;
+      else if (absZScore >= 1.5) condition = `strong volume ${obvZScore > 0 ? "buying" : "selling"} pressure`;
+      else if (absZScore >= 0.5) condition = `moderate volume ${obvZScore > 0 ? "inflow" : "outflow"}`;
+      else condition = "balanced volume activity";
+
+      validIndicators.push({
+        name: `Volume Flow ${obvZScore > 0 ? "+" : ""}${obvZScore.toFixed(1)}σ`,
+        value: absZScore,
+        condition: condition,
+      });
+    }
+
+    // ATR Percent validation and interpretation
+    const atrPercent = safeParseNumber(ta.atr_percent);
+    if (atrPercent !== null) {
+      let condition = "";
+      if (atrPercent >= 8) condition = "extremely high volatility - large price swings expected";
+      else if (atrPercent >= 5) condition = "high volatility - increased risk and opportunity";
+      else if (atrPercent >= 3) condition = "moderate volatility - normal price movement";
+      else condition = "low volatility - range-bound price action";
+
+      validIndicators.push({
+        name: `Volatility ${atrPercent.toFixed(1)}%`,
+        value: atrPercent,
+        condition: condition,
+      });
+    }
+
+    // Sort by relevance/importance (prioritize extreme values)
+    validIndicators.sort((a, b) => {
+      // Prioritize RSI extremes, then Bollinger extremes, then strong ADX
+      if (a.name.includes("RSI") && (a.value >= 70 || a.value <= 30)) return -1;
+      if (b.name.includes("RSI") && (b.value >= 70 || b.value <= 30)) return 1;
+      if (a.name.includes("Bollinger") && (a.value >= 0.8 || a.value <= 0.2)) return -1;
+      if (b.name.includes("Bollinger") && (b.value >= 0.8 || b.value <= 0.2)) return 1;
+      if (a.name.includes("ADX") && a.value >= 25) return -1;
+      if (b.name.includes("ADX") && b.value >= 25) return 1;
+      return 0;
+    });
+
+    // Return top 3 most relevant indicators
+    return validIndicators.slice(0, 3).map((indicator) => `${indicator.name} - ${indicator.condition}`);
   };
 
   const indicatorBullets = buildIndicatorBullets();
@@ -109,28 +235,28 @@ const createSimpleSignalResponse = (state: SignalGraphState) => {
 
   const confidencePct = Math.round(signalDecision.confidence * 100);
 
-  const message = `${actionEmoji} **[${signalDecision.direction}] ${tokenSymbol}** - ${riskLabel} Risk
-Price: \`$${currentPrice.toString()}\`\tConfidence: **${confidencePct} %**
-Timeframe: ${timeframeLabel} (${timeframeNote})
+  const baseMessage = `${actionEmoji} **[${signalDecision.direction}] $${tokenSymbol.toUpperCase()}**
+📊 ${text.price}: **$${formatPrice(currentPrice)}** | 🎯 ${text.confidence}: **${confidencePct}%** | ⚠️ ${text.risk}: **${riskLabel}**
+⏰ ${text.timeframe}: **${timeframeLabel}** (${timeframeNote})
 
-🗒️ *Market Snapshot*
+🗒️ *${text.marketSnapshot}*
 ${signalDecision.reasoning}
 
-🔍 *Why?*
+🔍 *${text.why}*
 ${whyBullets}
 
-🎯 **Suggested Action**
+🎯 **${text.suggestedAction}**
 ${suggestedAction}
 
-⚠️ DYOR - Always do your own research.`;
+⚠️ ${text.dyor}`;
 
   const level = signalDecision.riskLevel === "HIGH" ? 3 : signalDecision.riskLevel === "MEDIUM" ? 2 : 1;
 
   return {
     finalSignal: {
       level: level as 1 | 2 | 3,
-      title: `${actionEmoji} [${signalDecision.direction}] ${tokenSymbol}`,
-      message,
+      title: `${actionEmoji} [${signalDecision.direction}] $${tokenSymbol.toUpperCase()}`,
+      message: baseMessage,
       priority: signalDecision.riskLevel as "LOW" | "MEDIUM" | "HIGH",
       tags: [
         tokenSymbol.toLowerCase(),
@@ -145,32 +271,57 @@ ${suggestedAction}
 /**
  * Default response when no signal should be generated
  */
-const createNoSignalResponse = (tokenAddress: string, tokenSymbol: string) => {
+const createNoSignalResponse = (tokenAddress: string, tokenSymbol: string, userLanguage: string = "en") => {
+  // English base text (will be translated by LLM if needed)
+  const text = {
+    watchTitle: "[WATCH]",
+    status: "Status",
+    monitoring: "Monitoring",
+    market: "Market",
+    neutralRange: "Neutral Range",
+    risk: "Risk",
+    nextCheck: "Next Check",
+    analysisSummary: "Analysis Summary",
+    technicalNormal:
+      "Current technical indicators are within normal parameters. No significant trend breakouts or momentum shifts detected at this time.",
+    whatThisMeans: "What This Means",
+    priceConsolidating: "Price action is consolidating",
+    noClearBias: "No clear directional bias established",
+    marketWaiting: "Market waiting for catalyst",
+    nextSteps: "Next Steps",
+    continueMonitoring: "Continue monitoring for trend development",
+    watchLevels: "Watch key support/resistance levels",
+    stayAlert: "Stay alert for momentum changes",
+    patienceMessage: "Sometimes the best trade is no trade. Patience often pays off in crypto markets!",
+    notifyMessage: "We'll notify you when clearer opportunities emerge",
+  };
+
+  const baseMessage = `🔍 **${text.watchTitle} $${tokenSymbol.toUpperCase()}**
+📊 ${text.status}: **${text.monitoring}** | 🎯 ${text.market}: **${text.neutralRange}** | ⚠️ ${text.risk}: **Low**
+⏰ **${text.nextCheck}**: Regular monitoring mode
+
+📈 **${text.analysisSummary}**
+${text.technicalNormal}
+
+🔄 **${text.whatThisMeans}**
+• *${text.priceConsolidating}*
+• *${text.noClearBias}*
+• *${text.marketWaiting}*
+
+⏰ **${text.nextSteps}**
+• 👀 **${text.continueMonitoring}**
+• 📊 **${text.watchLevels}**
+• ⚡ **${text.stayAlert}**
+
+💡 *${text.patienceMessage}*
+
+🔔 _${text.notifyMessage}_`;
+
   return {
     finalSignal: {
       level: 1 as const,
-      title: `🔍 ${tokenSymbol} Market Watch`,
-      message: `🔍 **${tokenSymbol} Market Analysis** 📊
-
-⚡ **CURRENT STATUS**: *No Signal Generated*
-🎯 **Market Condition**: Neutral trading range
-
-📈 **Analysis Summary**
-Current technical indicators are within normal parameters. No significant trend breakouts or momentum shifts detected at this time.
-
-🔄 **What This Means**
-• *Price action is consolidating*
-• *No clear directional bias established*
-• *Market waiting for catalyst*
-
-⏰ **Next Steps**
-• 👀 **Continue monitoring** for trend development
-• 📊 **Watch key support/resistance levels**
-• ⚡ **Stay alert** for momentum changes
-
-💡 *Sometimes the best trade is no trade. Patience often pays off in crypto markets!*
-
-🔔 _We'll notify you when clearer opportunities emerge_`,
+      title: `🔍 ${text.watchTitle} $${tokenSymbol.toUpperCase()}`,
+      message: baseMessage,
       priority: "LOW" as const,
       tags: [tokenSymbol.toLowerCase(), "monitoring", "neutral"],
       buttons: createPhantomButtons(tokenAddress, tokenSymbol),
@@ -189,6 +340,7 @@ export const formatSignal = async (state: SignalGraphState): Promise<Partial<Sig
       hasAnalysis: !!state.signalDecision,
       hasStaticFilter: !!state.staticFilterResult,
       hasTechnicalAnalysis: !!state.technicalAnalysis,
+      userLanguage: state.userLanguage,
     });
 
     // When no signal should be generated
@@ -197,8 +349,9 @@ export const formatSignal = async (state: SignalGraphState): Promise<Partial<Sig
         tokenAddress: state.tokenAddress,
         hasSignalDecision: !!state.signalDecision,
         shouldGenerateSignal: state.signalDecision?.shouldGenerateSignal,
+        userLanguage: state.userLanguage,
       });
-      return createNoSignalResponse(state.tokenAddress, state.tokenSymbol);
+      return createNoSignalResponse(state.tokenAddress, state.tokenSymbol, state.userLanguage);
     }
 
     // Detailed validation of required data
@@ -225,6 +378,14 @@ export const formatSignal = async (state: SignalGraphState): Promise<Partial<Sig
       return {};
     }
 
+    // Get language display name for better LLM context
+    const languageDisplayName = getLanguageDisplayName(state.userLanguage || "en")
+      .replace(
+        /^🇸🇦 |^🇺🇸 |^🇯🇵 |^🇰🇷 |^🇨🇳 |^🇪🇸 |^🇫🇷 |^🇩🇪 |^🇷🇺 |^🇧🇷 |^🇮🇳 |^🇹🇭 |^🇻🇳 |^🇹🇷 |^🇵🇱 |^🇳🇱 |^🇸🇪 |^🇳🇴 |^🇩🇰 |^🇫🇮 |^🇨🇿 |^🇭🇺 |^🇷🇴 |^🇧🇬 |^🇭🇷 |^🇸🇰 |^🇸🇮 |^🇪🇪 |^🇱🇻 |^🇱🇹 |^🇬🇷 |^🇮🇱 |^🇮🇷 |^🇵🇰 |^🇧🇩 |^🇱🇰 |^🇲🇲 |^🇰🇭 |^🇱🇦 |^🇬🇪 |^🇦🇲 |^🇦🇿 |^🇰🇿 |^🇰🇬 |^🇺🇿 |^🇹🇯 |^🇲🇳 |^🇮🇩 |^🇲🇾 |^🇵🇭 |^🇰🇪 |^🇪🇹 |^🇳🇬 |^🇿�� |^🇲🇬 |^🇷🇼 |^🇸🇲 |^🇪🇷 |^🇵🇪 |^🇵🇭 |^🇭🇹 |^🇳🇿 |^🇫🇯 |^🇹🇴 |^🇼🇸 |^🇵🇫 |^🏝️ |^🇲🇹 |^🇮🇪 |^🏴󠁧󠁢󠁷󠁬󠁳󠁿 |^🏴 |^🇦🇺 |^🇨🇦 |^🇮🇹 |^🌐 /,
+        "",
+      )
+      .trim();
+
     // Prepare and validate prompt variables
     const promptVariables = {
       tokenSymbol: state.tokenSymbol,
@@ -247,7 +408,7 @@ export const formatSignal = async (state: SignalGraphState): Promise<Partial<Sig
         atrPercent: state.technicalAnalysis.atr_percent,
         obvZScore: state.technicalAnalysis.obv_zscore,
       }),
-      language: "English", // NEW - default language
+      language: languageDisplayName || "English",
     } as const;
 
     // Validate prompt variables
@@ -265,7 +426,7 @@ export const formatSignal = async (state: SignalGraphState): Promise<Partial<Sig
       "marketSentiment",
       "priceExpectation",
       "technicalData",
-      "language", // NEW
+      "language",
     ];
     const missingVariables = requiredVariables.filter(
       (key) =>
@@ -288,24 +449,25 @@ export const formatSignal = async (state: SignalGraphState): Promise<Partial<Sig
       signalType: state.signalDecision.signalType,
       direction: state.signalDecision.direction,
       confidence: state.signalDecision.confidence,
-      promptVariables: {
-        tokenSymbol: promptVariables.tokenSymbol,
-        signalType: promptVariables.signalType,
-        direction: promptVariables.direction,
-        currentPrice: promptVariables.currentPrice,
-        confidence: promptVariables.confidence,
-      },
+      userLanguage: state.userLanguage,
+      languageDisplayName,
     });
 
     // LLM signal formatting
-    const chain = signalFormattingPrompt.pipe(gpt4oMini.withStructuredOutput(SignalFormattingSchema));
+    const chain = signalFormattingPrompt.pipe(gpt4oMini.withStructuredOutput(signalFormattingSchema));
 
     logger.info("About to invoke LLM chain", {
       tokenAddress: state.tokenAddress,
       chainConfigured: true,
     });
 
-    const result = await chain.invoke(promptVariables);
+    // Add timeout to prevent infinite hanging
+    const result = (await Promise.race([
+      chain.invoke(promptVariables),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("LLM formatting timeout after 60 seconds")), 60000),
+      ),
+    ])) as z.infer<typeof signalFormattingSchema>;
 
     logger.info("LLM formatting result received", {
       tokenAddress: state.tokenAddress,
@@ -314,6 +476,7 @@ export const formatSignal = async (state: SignalGraphState): Promise<Partial<Sig
       priority: result?.priority,
       hasMessage: !!result?.message,
       messageLength: result?.message?.length,
+      userLanguage: state.userLanguage,
     });
 
     logger.info("Signal formatting completed", {
@@ -334,13 +497,7 @@ export const formatSignal = async (state: SignalGraphState): Promise<Partial<Sig
       tokenAddress: state.tokenAddress,
       tokenSymbol: state.tokenSymbol,
       error: error instanceof Error ? error.message : error,
-      errorStack: error instanceof Error ? error.stack : undefined,
-      errorName: error instanceof Error ? error.name : undefined,
-      hasSignalDecision: !!state.signalDecision,
-      hasTechnicalAnalysis: !!state.technicalAnalysis,
-      hasStaticFilterResult: !!state.staticFilterResult,
-      signalType: state.signalDecision?.signalType,
-      direction: state.signalDecision?.direction,
+      userLanguage: state.userLanguage,
     });
 
     // Try simple template-based formatting as fallback
@@ -348,6 +505,7 @@ export const formatSignal = async (state: SignalGraphState): Promise<Partial<Sig
       logger.info("Using simple template-based signal formatting", {
         tokenAddress: state.tokenAddress,
         signalType: state.signalDecision.signalType,
+        userLanguage: state.userLanguage,
       });
       return createSimpleSignalResponse(state);
     }

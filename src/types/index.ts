@@ -1,3 +1,43 @@
+// Import language constants from dedicated file
+export {
+  CATEGORY_NAMES,
+  LANGUAGE_DISPLAY_NAMES,
+  LANGUAGE_GREETINGS,
+  LanguageCategory,
+  POPULAR_LANGUAGES,
+  REGIONAL_LANGUAGES,
+} from "../constants/languages";
+
+// Setup step definition
+export enum SetupStep {
+  WALLET_ADDRESS = "wallet_address",
+  AGE = "age",
+  RISK_TOLERANCE = "risk_tolerance",
+  TOTAL_ASSETS = "total_assets",
+  CRYPTO_ASSETS = "crypto_assets",
+  PANIC_LEVEL = "panic_level",
+  COMPLETE = "complete",
+}
+
+export interface TelegramError {
+  type: "forbidden" | "invalid_user" | "rate_limit" | "network" | "bot_error" | "unknown";
+  message: string;
+  userId?: string;
+}
+
+export interface BroadcastResult {
+  totalUsers: number;
+  successCount: number;
+  failureCount: number;
+  failedUsers: string[];
+  results: Array<{
+    userId: string;
+    success: boolean;
+    messageId?: number;
+    error?: string;
+  }>;
+}
+
 export type SystemMessage = {
   content: string;
   tool_calls: {
@@ -26,17 +66,6 @@ export type StreamChunk = {
     messages: SystemMessage[];
   };
 };
-
-// Setup step definition
-export enum SetupStep {
-  WALLET_ADDRESS = "wallet_address",
-  AGE = "age",
-  RISK_TOLERANCE = "risk_tolerance",
-  TOTAL_ASSETS = "total_assets",
-  CRYPTO_ASSETS = "crypto_assets",
-  PANIC_LEVEL = "panic_level",
-  COMPLETE = "complete",
-}
 
 /** Enum defining available log levels */
 export enum LogLevel {
@@ -93,20 +122,6 @@ export interface AdminBroadcastRequest {
   excludeUserIds?: string[]; // Optional: exclude specific users
 }
 
-// Updated BroadcastResult type with detailed results
-export interface BroadcastResult {
-  totalUsers: number;
-  successCount: number;
-  failureCount: number;
-  failedUsers: string[];
-  results: Array<{
-    userId: string;
-    success: boolean;
-    messageId?: number;
-    error?: string;
-  }>;
-}
-
 export interface AdminBroadcastResponse {
   success: boolean;
   totalUsers: number;
@@ -118,13 +133,6 @@ export interface AdminBroadcastResponse {
   }>;
   error?: string;
 }
-
-// neverthrow error types
-export type TelegramError = {
-  type: "forbidden" | "rate_limit" | "invalid_user" | "network" | "bot_error" | "unknown";
-  message: string;
-  userId?: string;
-};
 
 // Legacy broadcast error type for backwards compatibility
 export type TelegramBroadcastError = {

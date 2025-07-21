@@ -1,7 +1,5 @@
-import { Annotation, MemorySaver } from "@langchain/langgraph";
-import type { TechnicalAnalysis } from "../../db/schema/technical-analysis";
-
-export const memory = new MemorySaver();
+import { Annotation } from "@langchain/langgraph";
+import type { TechnicalAnalysis } from "../../db";
 
 /**
  * Signal Generator Graph State
@@ -27,6 +25,12 @@ export const signalGraphState = Annotation.Root({
 
   technicalAnalysis: Annotation<TechnicalAnalysis>({
     reducer: (x, y) => y ?? x,
+  }),
+
+  // === User Settings ===
+  userLanguage: Annotation<string>({
+    reducer: (x, y) => y ?? x,
+    default: () => "en",
   }),
 
   // === Static Filter Results ===

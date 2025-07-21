@@ -1,272 +1,146 @@
-import { InlineKeyboard } from "grammy";
 import { err, ok, type Result } from "neverthrow";
-import type { BroadcastResult, MessageSentResult, TelegramError } from "../../types";
-import { sleep } from "../../utils";
-import { getUserIds } from "../../utils/db";
+import type { BroadcastResult, TelegramError } from "../../types";
+import { getUserIds, getUserProfile } from "../../utils/db";
+import { getLanguageDisplayName } from "../../utils/language";
 import { logger } from "../../utils/logger";
 import { getBotInstance } from "./bot";
 
-/**
- * Button type for Telegram inline keyboard
- */
-type TelegramButton = {
-  text: string;
-  url?: string;
-  callback_data?: string;
-};
+export interface SendMessageOptions {
+  parse_mode?: "HTML" | "Markdown" | "MarkdownV2";
+  disable_notification?: boolean;
+  buttons?: Array<{
+    text: string;
+    url: string;
+  }>;
+}
+
+export interface SendMessageToUserOptions extends SendMessageOptions {
+  userLanguage?: string;
+}
 
 /**
- * Send message to single user with detailed error handling
- */
-const sendToSingleUser = async (
-  userId: string,
-  message: string,
-  options?: {
-    parse_mode?: "HTML" | "Markdown" | "MarkdownV2";
-    disable_notification?: boolean;
-    buttons?: TelegramButton[];
-  },
-): Promise<Result<MessageSentResult, TelegramError>> => {
-  try {
-    const bot = getBotInstance();
-
-    // Create inline keyboard if buttons are provided
-    let reply_markup;
-    if (options?.buttons && options.buttons.length > 0) {
-      const keyboard = new InlineKeyboard();
-
-      // Add buttons in rows (2 buttons per row for better mobile UX)
-      options.buttons.forEach((button, index) => {
-        if (button.url) {
-          keyboard.url(button.text, button.url);
-        } else if (button.callback_data) {
-          keyboard.text(button.text, button.callback_data);
-        }
-
-        // Start new row after every 2 buttons
-        if (index % 2 === 1 && index < options.buttons!.length - 1) {
-          keyboard.row();
-        }
-      });
-
-      reply_markup = keyboard;
-    }
-
-    const result = await bot.api.sendMessage(userId, message, {
-      parse_mode: options?.parse_mode,
-      disable_notification: options?.disable_notification ?? false,
-      reply_markup,
-    });
-
-    logger.info(`Message sent to user ${userId}`, {
-      messageId: result.message_id,
-      message: message.substring(0, 50) + "...",
-      buttonsCount: options?.buttons?.length || 0,
-    });
-
-    return ok({
-      userId,
-      messageId: result.message_id,
-    });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-
-    // Categorize Telegram errors
-    let errorType: TelegramError["type"] = "unknown";
-    if (errorMessage.includes("Forbidden")) {
-      errorType = "forbidden";
-    } else if (errorMessage.includes("429")) {
-      errorType = "rate_limit";
-    } else if (errorMessage.includes("400")) {
-      errorType = "invalid_user";
-    } else if (errorMessage.includes("network") || errorMessage.includes("timeout")) {
-      errorType = "network";
-    }
-
-    logger.warn(`Failed to send message to user ${userId}`, {
-      error: errorMessage,
-      type: errorType,
-    });
-
-    return err({
-      type: errorType,
-      message: errorMessage,
-      userId,
-    });
-  }
-};
-
-/**
- * Process batch of users with parallel execution
- */
-const processBatch = async (
-  userIds: string[],
-  message: string,
-  options?: {
-    parse_mode?: "HTML" | "Markdown" | "MarkdownV2";
-    disable_notification?: boolean;
-    buttons?: TelegramButton[];
-  },
-): Promise<
-  Array<{
-    userId: string;
-    success: boolean;
-    messageId?: number;
-    error?: string;
-  }>
-> => {
-  const promises = userIds.map((userId) => sendToSingleUser(userId, message, options));
-  const results = await Promise.allSettled(promises);
-
-  return results.map((result, index) => {
-    const userId = userIds[index];
-
-    if (result.status === "fulfilled" && result.value.isOk()) {
-      const success = result.value.value;
-      return {
-        userId: success.userId,
-        success: true,
-        messageId: success.messageId,
-      };
-    }
-
-    let errorMessage: string;
-    if (result.status === "rejected") {
-      errorMessage = result.reason?.message || "Promise rejected";
-    } else if (result.value.isErr()) {
-      errorMessage = result.value.error.message;
-    } else {
-      errorMessage = "Unknown error";
-    }
-
-    return {
-      userId,
-      success: false,
-      error: errorMessage,
-    };
-  });
-};
-
-/**
- * Send message to specific users with batch processing and rate limiting
- *
- * @param userIds - Target user IDs
- * @param message - Message to send
- * @param options - Send options including batch size and delay
- * @returns Send result
+ * Send message to multiple users with language localization support
  */
 export const sendMessage = async (
   userIds: string[],
   message: string,
-  options?: {
-    parse_mode?: "HTML" | "Markdown" | "MarkdownV2";
-    disable_notification?: boolean;
-    batchSize?: number;
-    batchDelayMs?: number;
-    buttons?: TelegramButton[];
-  },
+  options: SendMessageOptions = {},
 ): Promise<Result<BroadcastResult, TelegramError>> => {
-  try {
-    const { batchSize = 25, batchDelayMs = 1000, ...sendOptions } = options ?? {};
+  if (userIds.length === 0) {
+    return err({ type: "invalid_user", message: "No user IDs provided" });
+  }
 
-    logger.info("Starting message send to specific users", {
-      totalUsers: userIds.length,
-      messageLength: message.length,
-      parseMode: sendOptions.parse_mode,
-      buttonsCount: sendOptions.buttons?.length || 0,
+  try {
+    const bot = getBotInstance();
+    const messageResults: BroadcastResult["results"] = [];
+
+    // Process users in parallel
+    const userPromises = userIds.map(async (userId) => {
+      try {
+        // Get user profile to check language preference
+        const userProfile = await getUserProfile(userId);
+        const userLanguage = userProfile?.language || "en";
+
+        // For now, send the original message (future: localize based on language)
+        const localizedMessage = await localizeMessage(message, userLanguage);
+
+        // Create inline keyboard if buttons are provided
+        let inlineKeyboard;
+        if (options.buttons && options.buttons.length > 0) {
+          const { InlineKeyboard } = await import("grammy");
+          inlineKeyboard = new InlineKeyboard();
+
+          // Add buttons in rows of 1 (each button gets its own row for better mobile UX)
+          for (const button of options.buttons) {
+            inlineKeyboard.url(button.text, button.url).row();
+          }
+        }
+
+        const response = await bot.api.sendMessage(userId, localizedMessage, {
+          parse_mode: options.parse_mode || "Markdown",
+          disable_notification: options.disable_notification,
+          reply_markup: inlineKeyboard,
+        });
+
+        logger.debug("Message sent successfully", {
+          userId,
+          messageId: response.message_id,
+          userLanguage,
+        });
+
+        return {
+          userId,
+          success: true,
+          messageId: response.message_id,
+          error: undefined,
+        };
+      } catch (error: any) {
+        const errorType: TelegramError["type"] =
+          error.error_code === 403
+            ? "forbidden"
+            : error.error_code === 429
+              ? "rate_limit"
+              : error.description?.includes("chat not found")
+                ? "invalid_user"
+                : "unknown";
+
+        logger.error("Failed to send message to user", {
+          userId,
+          error: error.message || String(error),
+          errorCode: error.error_code,
+          errorType,
+        });
+
+        return {
+          userId,
+          success: false,
+          messageId: undefined,
+          error: error.message || String(error),
+        };
+      }
     });
 
-    if (userIds.length === 0) {
-      logger.warn("No users provided for message send");
-      return ok({
-        totalUsers: 0,
-        successCount: 0,
-        failureCount: 0,
-        failedUsers: [],
-        results: [],
-      });
-    }
+    const sendResults = await Promise.all(userPromises);
 
-    // Create batches
-    const batches: string[][] = [];
-    for (let i = 0; i < userIds.length; i += batchSize) {
-      batches.push(userIds.slice(i, i + batchSize));
-    }
+    const successCount = sendResults.filter((r) => r.success).length;
+    const failureCount = sendResults.filter((r) => !r.success).length;
+    const failedUsers = sendResults.filter((r) => !r.success).map((r) => r.userId);
 
-    logger.info(`Processing ${batches.length} batches of up to ${batchSize} users each`);
-
-    const allResults: Array<{
-      userId: string;
-      success: boolean;
-      messageId?: number;
-      error?: string;
-    }> = [];
-
-    // Process batches sequentially with parallel processing within each batch
-    for (let i = 0; i < batches.length; i++) {
-      const batch = batches[i];
-
-      logger.info(`Processing batch ${i + 1}/${batches.length} (${batch.length} users)`);
-
-      const batchResults = await processBatch(batch, message, sendOptions);
-      allResults.push(...batchResults);
-
-      // Add delay between batches (except for the last one)
-      if (i < batches.length - 1) {
-        await sleep(batchDelayMs);
-      }
-    }
-
-    const successCount = allResults.filter((r) => r.success).length;
-    const failureCount = allResults.filter((r) => !r.success).length;
-    const failedUsers = allResults.filter((r) => !r.success).map((r) => r.userId);
-
-    const result: BroadcastResult = {
+    const broadcastResult: BroadcastResult = {
       totalUsers: userIds.length,
       successCount,
       failureCount,
       failedUsers,
-      results: allResults,
+      results: sendResults,
     };
 
-    logger.info("Message send completed", {
-      totalUsers: result.totalUsers,
-      successCount: result.successCount,
-      failureCount: result.failureCount,
-      successRate: result.totalUsers > 0 ? ((result.successCount / result.totalUsers) * 100).toFixed(1) + "%" : "0%",
+    return ok(broadcastResult);
+  } catch (error) {
+    logger.error("Message broadcasting failed", {
+      error: error instanceof Error ? error.message : String(error),
+      userCount: userIds.length,
     });
 
-    return ok(result);
-  } catch (error) {
     return err({
       type: "bot_error",
-      message: error instanceof Error ? error.message : "Unknown bot error",
+      message: error instanceof Error ? error.message : String(error),
     });
   }
 };
 
 /**
- * Broadcast message to all users with batch processing and rate limiting
- *
- * @param message - Message to broadcast
- * @param options - Broadcast options
- * @returns Broadcast result
+ * Broadcast message to all users with language localization
  */
 export const broadcastMessage = async (
   message: string,
-  options?: {
-    parse_mode?: "HTML" | "Markdown" | "MarkdownV2";
-    disable_notification?: boolean;
+  options: SendMessageOptions & {
     excludeUserIds?: string[];
-    batchSize?: number;
-    batchDelayMs?: number;
-    buttons?: TelegramButton[];
-  },
+  } = {},
 ): Promise<Result<BroadcastResult, TelegramError>> => {
   try {
     logger.info("Starting broadcast to all users");
 
-    const userIds = await getUserIds(options?.excludeUserIds);
+    const userIds = await getUserIds(options.excludeUserIds);
 
     if (userIds.length === 0) {
       logger.info("No users found for broadcast");
@@ -281,11 +155,105 @@ export const broadcastMessage = async (
 
     logger.info(`Broadcasting message to ${userIds.length} users`);
 
-    return await sendMessage(userIds, message, options);
+    const { excludeUserIds, ...sendOptions } = options;
+    return await sendMessage(userIds, message, sendOptions);
   } catch (error) {
     return err({
       type: "bot_error",
       message: error instanceof Error ? error.message : "Failed to fetch users",
     });
   }
+};
+
+/**
+ * Send message to a single user with language localization
+ */
+export const sendMessageToUser = async (
+  userId: string,
+  message: string,
+  options: SendMessageToUserOptions = {},
+): Promise<Result<{ messageId: number }, TelegramError>> => {
+  try {
+    const bot = getBotInstance();
+
+    // Get user language if not provided
+    let userLanguage = options.userLanguage;
+    if (!userLanguage) {
+      const userProfile = await getUserProfile(userId);
+      userLanguage = userProfile?.language || "en";
+    }
+
+    // Localize message based on user language
+    const localizedMessage = await localizeMessage(message, userLanguage);
+
+    // Create inline keyboard if buttons are provided
+    let inlineKeyboard;
+    if (options.buttons && options.buttons.length > 0) {
+      const { InlineKeyboard } = await import("grammy");
+      inlineKeyboard = new InlineKeyboard();
+
+      for (const button of options.buttons) {
+        inlineKeyboard.url(button.text, button.url).row();
+      }
+    }
+
+    const response = await bot.api.sendMessage(userId, localizedMessage, {
+      parse_mode: options.parse_mode || "Markdown",
+      disable_notification: options.disable_notification,
+      reply_markup: inlineKeyboard,
+    });
+
+    logger.info("Message sent to user", {
+      userId,
+      messageId: response.message_id,
+      userLanguage,
+    });
+
+    return ok({ messageId: response.message_id });
+  } catch (error: any) {
+    const errorType: TelegramError["type"] =
+      error.error_code === 403
+        ? "forbidden"
+        : error.error_code === 429
+          ? "rate_limit"
+          : error.description?.includes("chat not found")
+            ? "invalid_user"
+            : "unknown";
+
+    logger.error("Failed to send message to user", {
+      userId,
+      error: error.message || String(error),
+      errorCode: error.error_code,
+      errorType,
+    });
+
+    return err({
+      type: errorType,
+      message: error.message || String(error),
+      userId,
+    });
+  }
+};
+
+/**
+ * Localize message content based on user language preference
+ * For now, returns the original message. Future enhancement: use LLM for translation
+ */
+const localizeMessage = async (message: string, userLanguage: string): Promise<string> => {
+  // For now, return the original message
+  // TODO: Implement LLM-based translation for non-English languages
+  if (userLanguage === "en") {
+    return message;
+  }
+
+  // Add language indicator for non-English users
+  const languageDisplay = getLanguageDisplayName(userLanguage);
+  logger.debug("Message language preference noted", {
+    userLanguage,
+    languageDisplay,
+    messagePreview: message.substring(0, 100),
+  });
+
+  // Future: translate message using LLM
+  return message;
 };
