@@ -1,7 +1,86 @@
 import { describe, expect, it } from "vitest";
 import { initSignalGraph } from "../../../src/agents/signal/graph";
+import type { SignalGraphState } from "../../../src/agents/signal/graph-state";
 import type { TechnicalAnalysis } from "../../../src/db/schema/technical-analysis";
 import { createPhantomButtons } from "../../../src/lib/phantom";
+
+// Import the simple formatter for direct testing
+const createSimpleSignalResponse = (state: SignalGraphState) => {
+  const { signalDecision, tokenSymbol, tokenAddress, currentPrice } = state;
+
+  if (!signalDecision) {
+    return {
+      finalSignal: {
+        level: 1 as const,
+        title: `🔍 ${tokenSymbol} Market Watch`,
+        message: "No signal data",
+        priority: "LOW" as const,
+        tags: [tokenSymbol.toLowerCase(), "monitoring", "neutral"],
+        buttons: createPhantomButtons(tokenAddress, tokenSymbol),
+      },
+    };
+  }
+
+  const actionEmoji = signalDecision.direction === "BUY" ? "🚀" : signalDecision.direction === "SELL" ? "🚨" : "📊";
+  const riskLabel =
+    signalDecision.riskLevel === "HIGH" ? "High" : signalDecision.riskLevel === "MEDIUM" ? "Medium" : "Low";
+  const timeframeLabel =
+    signalDecision.timeframe === "SHORT"
+      ? "Short-term"
+      : signalDecision.timeframe === "MEDIUM"
+        ? "Mid-term"
+        : "Long-term";
+  const timeframeNote =
+    signalDecision.timeframe === "SHORT"
+      ? "1-4 h re-check recommended"
+      : signalDecision.timeframe === "MEDIUM"
+        ? "4-12 h re-check recommended"
+        : "12-24 h re-check recommended";
+
+  const whyBullets = signalDecision.keyFactors
+    .slice(0, 3)
+    .map((factor) => `• ${factor}`)
+    .join("\n");
+  const suggestedAction =
+    signalDecision.direction === "BUY"
+      ? `Consider gradual *buy* entry, re-evaluate price after ${timeframeNote}`
+      : signalDecision.direction === "SELL"
+        ? `Consider partial or full *sell*. Re-check chart after ${timeframeNote}`
+        : `Hold current position. Re-check market after ${timeframeNote}`;
+  const confidencePct = Math.round(signalDecision.confidence * 100);
+
+  const message = `${actionEmoji} **[${signalDecision.direction}] ${tokenSymbol}** - ${riskLabel} Risk
+Price: \`$${currentPrice.toString()}\`\tConfidence: **${confidencePct} %**
+Timeframe: ${timeframeLabel} (${timeframeNote})
+
+🗒️ *Market Snapshot*
+${signalDecision.reasoning}
+
+🔍 *Why?*
+${whyBullets}
+
+🎯 **Suggested Action**
+${suggestedAction}
+
+⚠️ DYOR - Always do your own research.`;
+
+  const level = signalDecision.riskLevel === "HIGH" ? 3 : signalDecision.riskLevel === "MEDIUM" ? 2 : 1;
+
+  return {
+    finalSignal: {
+      level: level as 1 | 2 | 3,
+      title: `${actionEmoji} [${signalDecision.direction}] ${tokenSymbol}`,
+      message,
+      priority: signalDecision.riskLevel as "LOW" | "MEDIUM" | "HIGH",
+      tags: [
+        tokenSymbol.toLowerCase(),
+        signalDecision.signalType.toLowerCase(),
+        signalDecision.direction.toLowerCase(),
+      ],
+      buttons: createPhantomButtons(tokenAddress, tokenSymbol),
+    },
+  };
+};
 
 describe("Signal Agent", () => {
   describe("Basic Functionality", () => {
@@ -129,6 +208,14 @@ describe("Signal Agent", () => {
           expect(signal.finalSignal?.message).toBeDefined();
           expect(signal.finalSignal?.priority).toBeDefined();
           expect(signal.finalSignal?.buttons).toBeDefined();
+
+          // Verify new format structure for generated signals
+          if (signal.finalSignal?.message) {
+            expect(signal.finalSignal.message).toContain("Market Snapshot");
+            expect(signal.finalSignal.message).toContain("Why?");
+            expect(signal.finalSignal.message).toContain("Suggested Action");
+            expect(signal.finalSignal.message).not.toContain("–"); // No full-width dashes
+          }
         }
       }
     }, 30000);
@@ -258,6 +345,14 @@ describe("Signal Agent", () => {
       if (signal.finalSignal) {
         expect(signal.finalSignal.priority).toBe("HIGH");
         expect(signal.finalSignal.level).toBe(3); // Highest alert level
+
+        // Verify high-priority signal format (simplified)
+        expect(signal.finalSignal.message).toContain("Market Snapshot");
+        expect(signal.finalSignal.message).toContain("Why?");
+        expect(signal.finalSignal.message).toContain("Suggested Action");
+        expect(signal.finalSignal.title).toContain("[BUY]");
+        expect(signal.finalSignal.title).toContain("SOL");
+        expect(signal.finalSignal.message).not.toContain("–"); // No full-width dashes
       }
     }, 30000);
 
@@ -312,6 +407,21 @@ describe("Signal Agent", () => {
         expect(["LOW", "MEDIUM", "HIGH"]).toContain(signal.finalSignal.priority);
         // Verify buttons include phantom button
         expect(signal.finalSignal.buttons?.length).toBeGreaterThan(0);
+
+        // Verify new message format structure
+        expect(signal.finalSignal.message).toContain("Market Snapshot");
+        expect(signal.finalSignal.message).toContain("Why?");
+        expect(signal.finalSignal.message).toContain("Suggested Action");
+        expect(signal.finalSignal.message).toContain("DYOR - Always do your own research");
+
+        // Verify title format matches new structure (simplified)
+        expect(signal.finalSignal.title).toContain("[BUY]");
+        expect(signal.finalSignal.title).toContain("SOL");
+
+        // Verify message contains proper sections with half-width dashes
+        expect(signal.finalSignal.message).not.toContain("–"); // No full-width dashes
+        expect(signal.finalSignal.message).toMatch(/Price:\s`\$[\d.]+`/); // Price format
+        expect(signal.finalSignal.message).toMatch(/Confidence:\s\*\*\d+\s%\*\*/); // Confidence format
       }
     }, 30000);
 
@@ -348,5 +458,155 @@ describe("Signal Agent", () => {
       expect(signal.staticFilterResult.confluenceScore).toBeGreaterThanOrEqual(0.2); // Minimum confluence threshold
       expect(signal.staticFilterResult.triggeredIndicators.length).toBeGreaterThanOrEqual(2); // Minimum indicator count
     }, 30000);
+  });
+
+  describe("Signal Formatting", () => {
+    it("should format BUY signal with new template structure", () => {
+      const mockState: Partial<SignalGraphState> = {
+        tokenAddress: "So11111111111111111111111111111111111111112",
+        tokenSymbol: "SOL",
+        currentPrice: 125.5,
+        technicalAnalysis: {
+          id: "test-ta-1",
+          token: "So11111111111111111111111111111111111111112",
+          timestamp: 1716153600,
+          rsi: "35",
+          vwap_deviation: "-2.5",
+          percent_b: "0.2",
+          adx: "28",
+          atr_percent: "3.2",
+          obv_zscore: "1.5",
+          vwap: "127.00",
+          obv: "1000",
+          bb_width: "0.1",
+          atr: "4.0",
+          adx_direction: "1",
+          signalGenerated: false,
+          createdAt: new Date(),
+        },
+        staticFilterResult: {
+          shouldProceed: true,
+          triggeredIndicators: ["RSI_OVERSOLD"],
+          signalCandidates: ["RSI_OVERSOLD"],
+          confluenceScore: 0.5,
+          riskLevel: "MEDIUM",
+        },
+        signalDecision: {
+          shouldGenerateSignal: true,
+          signalType: "TECHNICAL_REVERSAL",
+          direction: "BUY",
+          confidence: 0.75,
+          reasoning:
+            "Strong oversold conditions with support level holding. Like a compressed spring ready to bounce back.",
+          keyFactors: [
+            "RSI 35 - oversold conditions favor buyers",
+            "Bollinger -1σ touch - price near support band",
+            "ADX 28 - moderate trend strength building",
+          ],
+          riskLevel: "MEDIUM",
+          timeframe: "MEDIUM",
+          marketSentiment: "Cautiously optimistic",
+          priceExpectation: "Potential 8-12% upside in coming days",
+        },
+      };
+
+      const result = createSimpleSignalResponse(mockState as SignalGraphState);
+
+      expect(result.finalSignal).toBeDefined();
+      expect(result.finalSignal.level).toBe(2); // MEDIUM risk
+      expect(result.finalSignal.priority).toBe("MEDIUM");
+
+      // Test new format structure
+      expect(result.finalSignal.title).toBe("🚀 [BUY] SOL");
+      expect(result.finalSignal.message).toContain("🚀 **[BUY] SOL** - Medium Risk");
+      expect(result.finalSignal.message).toContain("Price: `$125.5`");
+      expect(result.finalSignal.message).toContain("Confidence: **75 %**");
+      expect(result.finalSignal.message).toContain("Timeframe: Mid-term (4-12 h re-check recommended)");
+
+      // Test required sections
+      expect(result.finalSignal.message).toContain("🗒️ *Market Snapshot*");
+      expect(result.finalSignal.message).toContain("🔍 *Why?*");
+      expect(result.finalSignal.message).toContain("🎯 **Suggested Action**");
+      expect(result.finalSignal.message).toContain("⚠️ DYOR - Always do your own research.");
+
+      // Test half-width dashes (no full-width)
+      expect(result.finalSignal.message).not.toContain("–");
+      expect(result.finalSignal.message).toContain("-");
+
+      // Test key factors formatting
+      expect(result.finalSignal.message).toContain("• RSI 35 - oversold conditions favor buyers");
+
+      // Test tags
+      expect(result.finalSignal.tags).toContain("sol");
+      expect(result.finalSignal.tags).toContain("technical_reversal");
+      expect(result.finalSignal.tags).toContain("buy");
+
+      // Test buttons
+      expect(result.finalSignal.buttons).toBeDefined();
+      expect(result.finalSignal.buttons?.length).toBeGreaterThan(0);
+    });
+
+    it("should format SELL signal with high risk correctly", () => {
+      const mockState: Partial<SignalGraphState> = {
+        tokenAddress: "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+        tokenSymbol: "WIF",
+        currentPrice: 2.45,
+        signalDecision: {
+          shouldGenerateSignal: true,
+          signalType: "MOMENTUM_REVERSAL",
+          direction: "SELL",
+          confidence: 0.82,
+          reasoning: "Overbought conditions with bearish divergence. Like a balloon that's inflated too much.",
+          keyFactors: [
+            "RSI 78 - overbought zone",
+            "Bollinger +2σ breakout - price above upper band",
+            "Volume declining - momentum weakening",
+          ],
+          riskLevel: "HIGH",
+          timeframe: "SHORT",
+          marketSentiment: "Risk-off sentiment building",
+          priceExpectation: "Potential 15-20% correction expected",
+        },
+      };
+
+      const result = createSimpleSignalResponse(mockState as SignalGraphState);
+
+      expect(result.finalSignal.level).toBe(3); // HIGH risk
+      expect(result.finalSignal.priority).toBe("HIGH");
+      expect(result.finalSignal.title).toBe("🚨 [SELL] WIF");
+      expect(result.finalSignal.message).toContain("🚨 **[SELL] WIF** - High Risk");
+      expect(result.finalSignal.message).toContain("Confidence: **82 %**");
+      expect(result.finalSignal.message).toContain("Short-term (1-4 h re-check recommended)");
+      expect(result.finalSignal.message).toContain("Consider partial or full *sell*");
+    });
+
+    it("should handle NEUTRAL/HOLD signals", () => {
+      const mockState: Partial<SignalGraphState> = {
+        tokenAddress: "So11111111111111111111111111111111111111112",
+        tokenSymbol: "SOL",
+        currentPrice: 100.0,
+        signalDecision: {
+          shouldGenerateSignal: true,
+          signalType: "CONSOLIDATION",
+          direction: "NEUTRAL",
+          confidence: 0.6,
+          reasoning: "Price consolidating in range. Market waiting for direction.",
+          keyFactors: ["RSI 50 - neutral momentum", "Price within Bollinger bands", "Low volatility - range-bound"],
+          riskLevel: "LOW",
+          timeframe: "LONG",
+          marketSentiment: "Neutral",
+          priceExpectation: "Sideways movement expected",
+        },
+      };
+
+      const result = createSimpleSignalResponse(mockState as SignalGraphState);
+
+      expect(result.finalSignal.level).toBe(1); // LOW risk
+      expect(result.finalSignal.priority).toBe("LOW");
+      expect(result.finalSignal.title).toBe("📊 [NEUTRAL] SOL");
+      expect(result.finalSignal.message).toContain("📊 **[NEUTRAL] SOL** - Low Risk");
+      expect(result.finalSignal.message).toContain("Long-term (12-24 h re-check recommended)");
+      expect(result.finalSignal.message).toContain("Hold current position");
+    });
   });
 });

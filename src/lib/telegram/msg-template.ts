@@ -36,7 +36,7 @@ Click the button below to agree to the Terms of Service and start your journey w
 
 /**
  * Format signal information for Telegram message
- * @param signal - Signal data
+ * @param signal - Signal data with new format structure
  * @param tokenSymbol - Token symbol
  * @param currentPrice - Current token price
  */
@@ -48,10 +48,37 @@ export const formatSignalMessage = (
     confidence: string | null;
     explanation: string | null;
     timestamp: Date;
+    value?: {
+      level?: number;
+      priority?: string;
+      tags?: string[];
+      buttons?: Array<{ text: string; url?: string; callback_data?: string }>;
+    };
   },
   tokenSymbol: string,
   currentPrice?: number,
 ): string => {
+  // If the signal already contains the new formatted message in body, use it directly
+  if (signal.body && signal.body.includes("Market Snapshot")) {
+    // Add timestamp and powered by footer to the new format
+    const timestamp = new Date(signal.timestamp).toLocaleString("en-US", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+
+    return `${signal.body}
+
+🕐 **Time**: ${escapeMarkdown(timestamp)} UTC
+
+💡 **Powered by Daiko AI**`;
+  }
+
+  // Legacy format handling for backward compatibility
   const directionEmoji = {
     BUY: "🟢",
     SELL: "🔴",

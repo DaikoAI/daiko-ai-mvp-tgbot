@@ -4,7 +4,7 @@ import { z } from "zod";
 
 /**
  * Signal Analysis Schema
- * LLMからの構造化出力を検証するためのZodスキーマ
+ * Zod schema for validating structured output from LLM
  */
 export const signalAnalysisSchema = z.object({
   shouldGenerateSignal: z.boolean(),
@@ -27,17 +27,17 @@ export const parser = StructuredOutputParser.fromZodSchema(signalAnalysisSchema)
 /**
  * Signal Analysis Prompts
  *
- * シグナル生成プロセスで使用する各種プロンプトテンプレート
- * - LLM分析用プロンプト
- * - エビデンス評価用プロンプト
- * - シグナルフォーマット用プロンプト
+ * Various prompt templates used in the signal generation process
+ * - LLM analysis prompt
+ * - Evidence evaluation prompt
+ * - Signal formatting prompt
  *
  * Note: Token symbols should always be displayed with $ prefix and in uppercase (e.g., $BTC, $ETH)
  */
 
 /**
  * LLM Signal Analysis Prompt
- * テクニカル指標の複合分析によるシグナル生成判定（初心者向け解釈付き）
+ * Composite analysis of technical indicators for signal generation (with beginner-friendly interpretation)
  */
 export const signalAnalysisPrompt = new PromptTemplate({
   inputVariables: [
@@ -114,7 +114,7 @@ Provide your analysis based on the structured format requirements above, using b
 
 /**
  * Evidence Evaluation Prompt
- * 外部データソースの評価とシグナル信頼度向上
+ * Evaluation of external data sources to improve signal reliability
  */
 export const evidenceEvaluationPrompt = new PromptTemplate({
   inputVariables: ["tokenSymbol", "signalType", "direction", "technicalReasoning", "externalSources"],
@@ -161,7 +161,7 @@ Analyze the external evidence and provide:
 
 /**
  * Signal Formatting Prompt
- * ユーザー向けシグナルメッセージの生成（初心者向けに分かりやすく）
+ * Generation of user-friendly signal messages (easy to understand for beginners)
  */
 export const signalFormattingPrompt = new PromptTemplate({
   inputVariables: [
@@ -178,134 +178,70 @@ export const signalFormattingPrompt = new PromptTemplate({
     "marketSentiment",
     "priceExpectation",
     "technicalData",
+    "language", // NEW
   ],
-  template: `You are a crypto trading signal formatter specializing in beginner-friendly explanations. Create clear, easy-to-understand Telegram messages that explain the market situation and trading recommendations without requiring technical analysis knowledge.
+  template: `You are a crypto trading signal formatter who excels at writing **concise, visually-scannable Telegram messages** that balance "easy actionability" with "intuitive explanation for users who do *not* understand technical analysis (TA)".
 
-## Input Data
-Token: {tokenSymbol} (Always display with $ prefix and uppercase)
-Address: {tokenAddress}
-Signal Type: {signalType}
-Direction: {direction}
-Current Price: {currentPrice}
-Confidence: {confidence}
-Risk Level: {riskLevel}
-Timeframe: {timeframe}
-Technical Reasoning: {reasoning}
-Key Factors: {keyFactors}
-Technical Data: {technicalData}
+# IMPORTANT
+Write the entire output in **{language}**. Do NOT mix languages except for unavoidable ticker symbols, indicator names, or numbers.
 
-## Message Guidelines
+# Formatting Goals
+1. A reader should instantly know **what action to take** (BUY / SELL / HOLD).
+2. The short explanation must *feel* right even to beginners - use clear analogies instead of TA jargon.
+3. Keep the layout rock-solid in both Telegram Markdown **and** HTML (avoid nested formatting that might break).
 
-**Market Situation Explanation:**
-- Use simple analogies and everyday language
-- Explain what's happening with the token in plain terms
-- Avoid technical jargon (RSI, VWAP, etc.)
-- Focus on price trends, momentum, and market sentiment
+# Input Data Analysis
+**Token**: {tokenSymbol} ({tokenAddress})
+**Signal Type**: {signalType}
+**Direction**: {direction}
+**Current Price**: {currentPrice}
+**Confidence**: {confidence}
+**Risk Level**: {riskLevel}
+**Timeframe**: {timeframe}
+**Reasoning**: {reasoning}
+**Key Factors**: {keyFactors}
+**Market Sentiment**: {marketSentiment}
+**Price Expectation**: {priceExpectation}
+**Technical Data**: {technicalData}
 
-**Action Rationale:**
-- Clearly explain WHY this action is recommended
-- Use phrases like "because the price is showing signs of..." or "market momentum suggests..."
-- Include what could happen if the recommendation is followed vs ignored
-- Mention the expected timeframe in simple terms
+# Message Format Requirements
 
-**Risk Communication:**
-- LOW risk: "This looks like a relatively safe opportunity"
-- MEDIUM risk: "This has potential but requires careful monitoring"
-- HIGH risk: "This is a high-reward opportunity but comes with significant risk"
+Create a message following this structure:
+- First line: [ACTION_EMOJI] **[ACTION] TOKEN_SYMBOL** - RISK_LEVEL Risk
+- Second line: Price: \`$PRICE\` Confidence: **CONFIDENCE_PCT %**
+- Third line: Timeframe: TIMEFRAME_LABEL (TIMEFRAME_NOTE)
+- Market Snapshot section with 1-2 sentences using analogies
+- Why section with up to 3 technical indicator explanations
+- Suggested Action section with concrete advice
+- DYOR disclaimer
 
-**Language Style:**
-- Use conversational tone
-- Include emojis for readability
-- Structure with clear sections
-- Keep sentences short and digestible
+# Formatting Rules
+- ACTION_EMOJI: BUY → 🚀, SELL → 🚨, NEUTRAL/HOLD → 📊
+- ACTION: Use the direction value (BUY/SELL/HOLD)
+- TOKEN_SYMBOL: Use tokenSymbol without $ prefix
+- RISK_LEVEL: Capitalize first letter of riskLevel (LOW → Low, MEDIUM → Medium, HIGH → High)
+- TIMEFRAME_LABEL: SHORT → Short-term, MEDIUM → Mid-term, LONG → Long-term
+- TIMEFRAME_NOTE:
+  - SHORT → "1-4 h re-check recommended"
+  - MEDIUM → "4-12 h re-check recommended"
+  - LONG → "12-24 h re-check recommended"
+- Use half-width dashes (-) throughout, never full-width (–)
+- Write all explanations in {language}
 
-## Required Output Format:
+# Output Instructions
+Return **ONLY** a JSON object with these exact fields:
+{{
+  "level": 1 | 2 | 3,
+  "title": "string (action emoji + [ACTION] + token symbol)",
+  "message": "string (complete formatted message)",
+  "priority": "LOW" | "MEDIUM" | "HIGH",
+  "tags": ["array", "of", "strings"]
+}}
 
-Create a formatted signal message with:
-- **level**: string (INFO, ALERT, CRITICAL based on confidence and risk)
-- **title**: string (engaging headline summarizing the opportunity)
-- **message**: string (detailed explanation in beginner-friendly language)
-- **priority**: number (1-5, where 5 is highest priority)
-- **tags**: array of strings (relevant categories)
+Level assignment:
+- 3: HIGH risk OR confidence ≥ 80%
+- 2: MEDIUM risk OR confidence 60-79%
+- 1: Otherwise
 
-## Message Structure:
-
-Title: Should be catchy and informative (e.g., "🚀 [$TOKEN] Breaking Upward Momentum" or "⚠️ [$TOKEN] Showing Weakness")
-
-Message should include:
-1. **Current Situation**: What's happening with the token right now
-2. **Why This Matters**: Simple explanation of market forces
-3. **Recommended Action**: Clear BUY/SELL/HOLD with reasoning
-4. **What to Expect**: Potential outcomes and timeframe
-5. **Risk Assessment**: Easy-to-understand risk explanation
-6. **Key Points**: 2-3 bullet points with main factors
-
-## Visual Formatting Guidelines:
-
-**Emoji Usage:**
-- 🚀 🌟 ⭐ 💫 - for bullish signals and positive momentum
-- 📈 📊 💹 💰 - for technical analysis and price movements
-- ⚠️ 🚨 ⚡ 🔥 - for alerts and important warnings
-- 📉 🔴 ⛔ 💸 - for bearish signals and risks
-- 🎯 🔍 💡 📌 - for targets and insights
-- ⏰ ⏳ 📅 - for timing and timeframes
-- 💎 🛡️ ⚖️ - for risk management and protection
-
-**Markdown Formatting:**
-- Use **bold** for important actions, prices, percentages, and key terms
-- Use *italic* for emphasis on market sentiment and expectations
-- Use monospace formatting for specific technical levels or addresses
-- Use • or ▫️ for bullet points
-- Use sections with clear headers
-
-**Message Structure Template:**
-
-[EMOJI] **[$TOKEN_SYMBOL] - [Signal Type]** [EMOJI]
-
-🎯 **RECOMMENDED ACTION**: [Clear Action]
-💰 **Current Price**: $[Price]
-📊 **Confidence**: [X]% | **Risk**: [Level]
-
-[SECTION EMOJI] **Market Situation**
-[Simple explanation of what's happening]
-
-[SECTION EMOJI] **Why This Matters**
-*[Market forces explanation]*
-
-[SECTION EMOJI] **What to Expect**
-• **Short-term**: [Expected movement]
-• **Timeframe**: [Duration]
-• **Price Target**: [If applicable]
-
-[RISK EMOJI] **Risk Assessment**
-[Easy-to-understand risk explanation with appropriate emoji]
-
-📌 **Key Factors**:
-▫️ [Factor 1]
-▫️ [Factor 2]
-▫️ [Factor 3]
-
-💡 *[Actionable insight or closing advice]*
-
-**Risk Level Formatting:**
-- **LOW RISK**: 🟢 Green indicators, 🛡️ safety emojis
-- **MEDIUM RISK**: 🟡 Yellow indicators, ⚖️ balance emojis
-- **HIGH RISK**: 🔴 Red indicators, ⚠️ warning emojis
-
-**Direction-Specific Emojis:**
-- **BUY signals**: 🚀 📈 💚 ⬆️ 🌟
-- **SELL signals**: 📉 🔴 ⬇️ 💸 ⚠️
-- **NEUTRAL/HOLD**: 📊 🔄 ⏸️ 🎯
-
-Make the message visually engaging while maintaining professionalism and clarity.
-
-Example phrases to use:
-- "The price is gaining momentum because..."
-- "Market indicators suggest..."
-- "This token is showing signs of..."
-- "Based on recent trading patterns..."
-- "The current trend indicates..."
-- "Risk level is [X] because..."
-
-Make the message informative yet accessible to someone who doesn't know technical analysis.`,
+Write the complete formatted message based on the provided data, ensuring all text (except technical terms) is in {language}.`,
 });
