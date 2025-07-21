@@ -18,11 +18,6 @@ import { isValidSolanaAddress } from "../../utils/solana";
 import { getAssetsByOwner } from "../helius";
 import { proceedToNextStep } from "./command";
 
-// Helper function to escape MarkdownV2 special characters
-const escapeMarkdownV2 = (text: string): string => {
-  return text.replace(/[_*\[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
-};
-
 export const setupHandler = (bot: Bot) => {
   bot.on("message:text", async (ctx: Context) => {
     const userId = ctx.from?.id.toString();
@@ -48,9 +43,7 @@ export const setupHandler = (bot: Bot) => {
         switch (waitingFor) {
           case SetupStep.WALLET_ADDRESS: {
             if (!isValidSolanaAddress(text)) {
-              await ctx.reply("Please enter a valid wallet address\\.", {
-                parse_mode: "MarkdownV2",
-              });
+              await ctx.reply("Please enter a valid wallet address.");
               return;
             }
 
@@ -62,9 +55,7 @@ export const setupHandler = (bot: Bot) => {
               waitingForInput: null,
             });
 
-            await ctx.reply(`Wallet address set to ${escapeMarkdownV2(text)}\\!`, {
-              parse_mode: "MarkdownV2",
-            });
+            await ctx.reply(`Wallet address set to ${text}!`);
 
             const assets = await getAssetsByOwner(text);
             const userTokens: NewToken[] = assets.map((asset) => ({
@@ -217,7 +208,9 @@ export const setupHandler = (bot: Bot) => {
             logger.warn("message handler", "Failed to delete thinking message:", deleteError);
           }
 
-          await ctx.reply(latestAgentMessage);
+          await ctx.reply(latestAgentMessage, {
+            parse_mode: "MarkdownV2",
+          });
 
           // Save AI message to database
           const aiMessage = new AIMessage(latestAgentMessage);
