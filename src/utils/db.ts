@@ -4,26 +4,26 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import { Result, err, ok } from "neverthrow";
 import { BATCH_PROCESSING, QUERY_LIMITS } from "../constants/database";
 import {
-    NewSignal,
-    NewToken,
-    Signal,
-    Token,
-    User,
-    chatMessages,
-    getDB,
-    schema,
-    signal,
-    technicalAnalysis,
-    tokenOHLCV,
-    tokens,
-    userTokenHoldings,
-    users,
-    type NewChatMessage,
-    type NewTechnicalAnalysis,
-    type NewUser,
-    type TechnicalAnalysis,
-    type TokenOHLCV,
-    type UserTokenHolding,
+  NewSignal,
+  NewToken,
+  Signal,
+  Token,
+  User,
+  chatMessages,
+  getDB,
+  schema,
+  signal,
+  technicalAnalysis,
+  tokenOHLCV,
+  tokens,
+  userTokenHoldings,
+  users,
+  type NewChatMessage,
+  type NewTechnicalAnalysis,
+  type NewUser,
+  type TechnicalAnalysis,
+  type TokenOHLCV,
+  type UserTokenHolding,
 } from "../db";
 import { logger } from "./logger";
 
@@ -1276,10 +1276,7 @@ export const getLastSignalTime = async (tokenAddress: string): Promise<Date | nu
  * @param hours Number of hours to look back
  * @returns Array of recent signals
  */
-export const getRecentSignalsByToken = async (
-  tokenAddress: string,
-  hours: number = 2
-): Promise<Signal[]> => {
+export const getRecentSignalsByToken = async (tokenAddress: string, hours: number = 2): Promise<Signal[]> => {
   try {
     const db = getDB();
     const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
@@ -1287,12 +1284,7 @@ export const getRecentSignalsByToken = async (
     const results = await db
       .select()
       .from(signal)
-      .where(
-        and(
-          eq(signal.token, tokenAddress),
-          sql`${signal.timestamp} >= ${cutoffTime}`
-        )
-      )
+      .where(and(eq(signal.token, tokenAddress), sql`${signal.timestamp} >= ${cutoffTime}`))
       .orderBy(desc(signal.timestamp));
 
     return results;
@@ -1321,7 +1313,7 @@ export const hasSimilarRecentSignal = async (
   direction: string,
   confidence: number,
   hours: number = 2,
-  confidenceThreshold: number = 0.1
+  confidenceThreshold: number = 0.1,
 ): Promise<boolean> => {
   try {
     const recentSignals = await getRecentSignalsByToken(tokenAddress, hours);
@@ -1331,7 +1323,7 @@ export const hasSimilarRecentSignal = async (
     }
 
     // Check for similar signals
-    const similarSignal = recentSignals.find(recentSignal => {
+    const similarSignal = recentSignals.find((recentSignal) => {
       // Same direction
       if (recentSignal.direction !== direction) {
         return false;

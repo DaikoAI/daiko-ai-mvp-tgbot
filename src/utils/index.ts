@@ -1,4 +1,5 @@
 import { TIMEOUT_MS } from "../constants";
+import { EXCLUDED_TOKENS } from "../constants/signal-cooldown";
 import type { StreamChunk } from "../types";
 import { logger } from "./logger";
 
@@ -69,4 +70,15 @@ export const escapeMarkdown = (text: string): string => {
   // Only escape characters that could interfere with basic markdown parsing
   // Don't escape * _ ` if they are part of intended markdown formatting
   return text;
+};
+
+/**
+ * Check if a token should be excluded from signal generation
+ */
+export const isExcludedToken = (tokenAddress: string): { excluded: boolean; reason?: string } => {
+  if (EXCLUDED_TOKENS.STABLECOINS.includes(tokenAddress)) {
+    return { excluded: true, reason: "STABLECOIN" };
+  }
+
+  return { excluded: false };
 };

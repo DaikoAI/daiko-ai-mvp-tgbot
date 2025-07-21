@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { COOLDOWN_CONFIG, isExcludedToken } from "../../../src/constants/signal-cooldown";
 import {
-    calculateSmartCooldown,
-    classifyMarketCondition,
-    getRemainingCooldownTime,
-    getSignalStrengthLevel,
-    isWithinCooldown,
+  calculateSmartCooldown,
+  classifyMarketCondition,
+  getRemainingCooldownTime,
+  getSignalStrengthLevel,
+  isWithinCooldown,
 } from "../../../src/lib/signal-cooldown";
 import type { TechnicalAnalysisResult } from "../../../src/lib/ta";
 

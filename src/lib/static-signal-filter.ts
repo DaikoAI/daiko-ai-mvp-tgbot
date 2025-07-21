@@ -1,6 +1,6 @@
-import { isExcludedToken } from "../constants/signal-cooldown";
 import { SIGNAL_THRESHOLDS, SIGNAL_TYPES } from "../constants/signal-thresholds";
 import type { TechnicalAnalysis } from "../db/schema/technical-analysis";
+import { isExcludedToken } from "../utils";
 import { logger } from "../utils/logger";
 
 export interface StaticFilterResult {

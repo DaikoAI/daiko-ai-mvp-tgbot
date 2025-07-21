@@ -1,9 +1,9 @@
 import {
-    COOLDOWN_CONFIG,
-    MARKET_CONDITIONS,
-    SIGNAL_STRENGTH,
-    type MarketCondition,
-    type SignalStrengthLevel
+  COOLDOWN_CONFIG,
+  MARKET_CONDITIONS,
+  SIGNAL_STRENGTH,
+  type MarketCondition,
+  type SignalStrengthLevel,
 } from "../constants/signal-cooldown";
 import { logger } from "../utils/logger";
 import type { TechnicalAnalysisResult } from "./ta";
@@ -14,32 +14,27 @@ import type { TechnicalAnalysisResult } from "./ta";
  * @param signalConfidence Signal confidence score (0.0 - 1.0)
  * @returns Cooldown period in minutes
  */
-export const calculateSmartCooldown = (
-  analysis: TechnicalAnalysisResult,
-  signalConfidence: number = 0.5
-): number => {
+export const calculateSmartCooldown = (analysis: TechnicalAnalysisResult, signalConfidence: number = 0.5): number => {
   const { atrPercent = 2, adx = 20, rsi = 50 } = analysis;
 
   try {
     // 1. Calculate volatility factor (inverse relationship with ATR)
     const volatilityFactor = Math.max(
       COOLDOWN_CONFIG.VOLATILITY.MIN_FACTOR,
-      Math.min(
-        COOLDOWN_CONFIG.VOLATILITY.MAX_FACTOR,
-        COOLDOWN_CONFIG.VOLATILITY.REFERENCE_ATR / atrPercent
-      )
+      Math.min(COOLDOWN_CONFIG.VOLATILITY.MAX_FACTOR, COOLDOWN_CONFIG.VOLATILITY.REFERENCE_ATR / atrPercent),
     );
 
     // 2. Calculate trend factor (strong trend = shorter cooldown)
-    const trendFactor = adx > COOLDOWN_CONFIG.TREND.STRONG_TREND_THRESHOLD
-      ? COOLDOWN_CONFIG.TREND.STRONG_TREND_FACTOR
-      : COOLDOWN_CONFIG.TREND.WEAK_TREND_FACTOR;
+    const trendFactor =
+      adx > COOLDOWN_CONFIG.TREND.STRONG_TREND_THRESHOLD
+        ? COOLDOWN_CONFIG.TREND.STRONG_TREND_FACTOR
+        : COOLDOWN_CONFIG.TREND.WEAK_TREND_FACTOR;
 
     // 3. Calculate RSI factor (extremity = shorter cooldown)
-    const rsiFactor = (rsi > COOLDOWN_CONFIG.RSI.OVERBOUGHT_THRESHOLD ||
-                      rsi < COOLDOWN_CONFIG.RSI.OVERSOLD_THRESHOLD)
-      ? COOLDOWN_CONFIG.RSI.EXTREMITY_FACTOR
-      : COOLDOWN_CONFIG.RSI.NORMAL_FACTOR;
+    const rsiFactor =
+      rsi > COOLDOWN_CONFIG.RSI.OVERBOUGHT_THRESHOLD || rsi < COOLDOWN_CONFIG.RSI.OVERSOLD_THRESHOLD
+        ? COOLDOWN_CONFIG.RSI.EXTREMITY_FACTOR
+        : COOLDOWN_CONFIG.RSI.NORMAL_FACTOR;
 
     // 4. Calculate signal strength factor
     const strengthFactor = getSignalStrengthMultiplier(signalConfidence);
@@ -51,7 +46,7 @@ export const calculateSmartCooldown = (
     // 6. Apply min/max constraints
     const finalCooldown = Math.max(
       COOLDOWN_CONFIG.MIN_COOLDOWN,
-      Math.min(COOLDOWN_CONFIG.MAX_COOLDOWN, Math.round(calculatedCooldown))
+      Math.min(COOLDOWN_CONFIG.MAX_COOLDOWN, Math.round(calculatedCooldown)),
     );
 
     // 7. Log calculation details
@@ -70,7 +65,6 @@ export const calculateSmartCooldown = (
     });
 
     return finalCooldown;
-
   } catch (error) {
     logger.error("Error calculating smart cooldown, using base cooldown", {
       error: error instanceof Error ? error.message : String(error),
@@ -120,7 +114,7 @@ const getSignalStrengthMultiplier = (confidence: number): number => {
 export const shouldSkipDueToCooldown = async (
   tokenAddress: string,
   analysis: TechnicalAnalysisResult,
-  signalConfidence: number = 0.5
+  signalConfidence: number = 0.5,
 ): Promise<boolean> => {
   try {
     // Import here to avoid circular dependency
@@ -157,7 +151,6 @@ export const shouldSkipDueToCooldown = async (
     });
 
     return false;
-
   } catch (error) {
     logger.error("Error checking cooldown status, proceeding with signal generation", {
       error: error instanceof Error ? error.message : String(error),
@@ -173,7 +166,7 @@ export const shouldSkipDueToCooldown = async (
 export const isWithinCooldown = (lastSignalTime: Date, cooldownMinutes: number): boolean => {
   const now = new Date();
   const cooldownMs = cooldownMinutes * 60 * 1000;
-  return (now.getTime() - lastSignalTime.getTime()) < cooldownMs;
+  return now.getTime() - lastSignalTime.getTime() < cooldownMs;
 };
 
 /**
