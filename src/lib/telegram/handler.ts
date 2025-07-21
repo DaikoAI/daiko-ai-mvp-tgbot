@@ -217,9 +217,7 @@ export const setupHandler = (bot: Bot) => {
             logger.warn("message handler", "Failed to delete thinking message:", deleteError);
           }
 
-          await ctx.reply(escapeMarkdownV2(latestAgentMessage), {
-            parse_mode: "MarkdownV2",
-          });
+          await ctx.reply(latestAgentMessage);
 
           // Save AI message to database
           const aiMessage = new AIMessage(latestAgentMessage);
