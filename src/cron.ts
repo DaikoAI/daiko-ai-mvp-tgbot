@@ -315,7 +315,7 @@ const generateSignalTask = async () => {
         const safeParseFloat = (value: string | null | undefined, fallback?: number): number | undefined => {
           if (value === null || value === undefined || value === "") return fallback;
           const parsed = parseFloat(value);
-          return !isNaN(parsed) && isFinite(parsed) ? parsed : fallback;
+          return !isNaN(parsed) && Number.isFinite(parsed) ? parsed : fallback;
         };
 
         // Convert technical analysis to required format with robust validation
