@@ -204,7 +204,14 @@ export const setupHandler = (bot: Bot) => {
         // Process the final response
         if (latestAgentMessage) {
           if (!ctx.chat?.id) return;
-          await ctx.api.deleteMessage(ctx.chat.id, thinkingMessage.message_id);
+
+          // Safely delete thinking message
+          try {
+            await ctx.api.deleteMessage(ctx.chat.id, thinkingMessage.message_id);
+          } catch (deleteError) {
+            logger.warn("message handler", "Failed to delete thinking message:", deleteError);
+          }
+
           await ctx.reply(latestAgentMessage, {
             parse_mode: "MarkdownV2",
           });
@@ -215,7 +222,14 @@ export const setupHandler = (bot: Bot) => {
         } else {
           // No response from agent
           if (!ctx.chat?.id) return;
-          await ctx.api.deleteMessage(ctx.chat.id, thinkingMessage.message_id);
+
+          // Safely delete thinking message
+          try {
+            await ctx.api.deleteMessage(ctx.chat.id, thinkingMessage.message_id);
+          } catch (deleteError) {
+            logger.warn("message handler", "Failed to delete thinking message:", deleteError);
+          }
+
           await ctx.reply("I'm sorry, I couldn't process your request at the moment. Please try again.");
 
           // Save error response to database
@@ -226,7 +240,13 @@ export const setupHandler = (bot: Bot) => {
         }
       } catch (error: unknown) {
         if (!ctx.chat?.id) return;
-        await ctx.api.deleteMessage(ctx.chat.id, thinkingMessage.message_id);
+
+        // Safely delete thinking message
+        try {
+          await ctx.api.deleteMessage(ctx.chat.id, thinkingMessage.message_id);
+        } catch (deleteError) {
+          logger.warn("message handler", "Failed to delete thinking message:", deleteError);
+        }
 
         if (error instanceof Error && error.message === "Timeout") {
           await ctx.reply("I'm sorry, the operation took too long and timed out. Please try again.");
