@@ -3,6 +3,7 @@ import { generateSignal } from "./agents/signal/graph";
 import { OHLCV_RETENTION } from "./constants/database";
 import { tokenOHLCV } from "./db";
 import { createPhantomButtons } from "./lib/phantom";
+import { shouldSkipDueToCooldown } from "./lib/signal-cooldown";
 import { calculateTechnicalIndicators, convertTAtoDbFormat, type OHLCVData } from "./lib/ta";
 import { getTACache } from "./lib/ta-cache";
 import { sendMessage } from "./lib/telegram/utils";
@@ -298,6 +299,34 @@ const generateSignalTask = async () => {
     // 各トークンに対してシグナル生成を並列実行
     const signalPromises = unprocessedAnalyses.map(async (analysis) => {
       try {
+        // Convert technical analysis to required format
+        const technicalAnalysisResult = {
+          atrPercent: parseFloat(analysis.atr_percent || "2"),
+          adx: parseFloat(analysis.adx || "20"),
+          rsi: parseFloat(analysis.rsi || "50"),
+          vwap: parseFloat(analysis.vwap || "0"),
+          vwapDeviation: parseFloat(analysis.vwap_deviation || "0"),
+          obv: parseFloat(analysis.obv || "0"),
+          obvZScore: parseFloat(analysis.obv_zscore || "0"),
+          percentB: parseFloat(analysis.percent_b || "0.5"),
+          bbWidth: parseFloat(analysis.bb_width || "0"),
+          atr: parseFloat(analysis.atr || "0"),
+          adxDirection: (analysis.adx_direction as "UP" | "DOWN" | "NEUTRAL") || "NEUTRAL",
+        };
+
+        // Check if signal generation should be skipped due to cooldown
+        if (await shouldSkipDueToCooldown(analysis.token, technicalAnalysisResult)) {
+          logger.info("Skipping signal generation due to cooldown", {
+            tokenAddress: analysis.token,
+            atrPercent: technicalAnalysisResult.atrPercent,
+            adx: technicalAnalysisResult.adx,
+            rsi: technicalAnalysisResult.rsi,
+          });
+          // Mark as processed to avoid reprocessing
+          await markTechnicalAnalysisAsProcessed(analysis.id);
+          return null;
+        }
+
         return await processTokenSignal(analysis);
       } catch (error) {
         logger.error("Signal generation failed for token", {

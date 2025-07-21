@@ -4,26 +4,26 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import { Result, err, ok } from "neverthrow";
 import { BATCH_PROCESSING, QUERY_LIMITS } from "../constants/database";
 import {
-  NewSignal,
-  NewToken,
-  Signal,
-  Token,
-  User,
-  chatMessages,
-  getDB,
-  schema,
-  signal,
-  technicalAnalysis,
-  tokenOHLCV,
-  tokens,
-  userTokenHoldings,
-  users,
-  type NewChatMessage,
-  type NewTechnicalAnalysis,
-  type NewUser,
-  type TechnicalAnalysis,
-  type TokenOHLCV,
-  type UserTokenHolding,
+    NewSignal,
+    NewToken,
+    Signal,
+    Token,
+    User,
+    chatMessages,
+    getDB,
+    schema,
+    signal,
+    technicalAnalysis,
+    tokenOHLCV,
+    tokens,
+    userTokenHoldings,
+    users,
+    type NewChatMessage,
+    type NewTechnicalAnalysis,
+    type NewUser,
+    type TechnicalAnalysis,
+    type TokenOHLCV,
+    type UserTokenHolding,
 } from "../db";
 import { logger } from "./logger";
 
@@ -1232,4 +1232,126 @@ export const getUserTokenHoldings = async (userId: string): Promise<UserTokenHol
   const holdings = await db.select().from(userTokenHoldings).where(eq(userTokenHoldings.userId, userId));
 
   return holdings;
+};
+
+// ============================================================
+// Signal Cooldown Related Functions
+// ============================================================
+
+/**
+ * Get the timestamp of the last signal for a specific token
+ * Used for cooldown period calculations
+ * @param tokenAddress Token contract address
+ * @returns Date of last signal or null if no signals found
+ */
+export const getLastSignalTime = async (tokenAddress: string): Promise<Date | null> => {
+  try {
+    const db = getDB();
+
+    const result = await db
+      .select({ timestamp: signal.timestamp })
+      .from(signal)
+      .where(eq(signal.token, tokenAddress))
+      .orderBy(desc(signal.timestamp))
+      .limit(1);
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    return result[0].timestamp;
+  } catch (error) {
+    logger.error("Failed to get last signal time", {
+      error: error instanceof Error ? error.message : String(error),
+      tokenAddress,
+    });
+    return null;
+  }
+};
+
+/**
+ * Get recent signals for a specific token within specified time window
+ * Used for similar signal detection
+ * @param tokenAddress Token contract address
+ * @param hours Number of hours to look back
+ * @returns Array of recent signals
+ */
+export const getRecentSignalsByToken = async (
+  tokenAddress: string,
+  hours: number = 2
+): Promise<Signal[]> => {
+  try {
+    const db = getDB();
+    const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+    const results = await db
+      .select()
+      .from(signal)
+      .where(
+        and(
+          eq(signal.token, tokenAddress),
+          sql`${signal.timestamp} >= ${cutoffTime}`
+        )
+      )
+      .orderBy(desc(signal.timestamp));
+
+    return results;
+  } catch (error) {
+    logger.error("Failed to get recent signals by token", {
+      error: error instanceof Error ? error.message : String(error),
+      tokenAddress,
+      hours,
+    });
+    return [];
+  }
+};
+
+/**
+ * Check if there are similar recent signals for the same token
+ * Used to prevent duplicate signal generation
+ * @param tokenAddress Token contract address
+ * @param direction Signal direction (BUY/SELL/NEUTRAL)
+ * @param confidence Signal confidence score
+ * @param hours Time window in hours to check
+ * @param confidenceThreshold Threshold for considering signals similar
+ * @returns Boolean indicating if similar signal exists
+ */
+export const hasSimilarRecentSignal = async (
+  tokenAddress: string,
+  direction: string,
+  confidence: number,
+  hours: number = 2,
+  confidenceThreshold: number = 0.1
+): Promise<boolean> => {
+  try {
+    const recentSignals = await getRecentSignalsByToken(tokenAddress, hours);
+
+    if (recentSignals.length === 0) {
+      return false;
+    }
+
+    // Check for similar signals
+    const similarSignal = recentSignals.find(recentSignal => {
+      // Same direction
+      if (recentSignal.direction !== direction) {
+        return false;
+      }
+
+      // Similar confidence level
+      const recentConfidence = parseFloat(recentSignal.confidence || "0");
+      const confidenceDiff = Math.abs(confidence - recentConfidence);
+
+      return confidenceDiff <= confidenceThreshold;
+    });
+
+    return !!similarSignal;
+  } catch (error) {
+    logger.error("Failed to check for similar recent signals", {
+      error: error instanceof Error ? error.message : String(error),
+      tokenAddress,
+      direction,
+      confidence,
+    });
+    return false; // Fail open - don't block signal generation on error
+  }
 };
