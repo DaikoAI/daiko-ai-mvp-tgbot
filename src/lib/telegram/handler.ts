@@ -98,10 +98,7 @@ const processAgentStream = async (tgAgent: any, config: any, userChatHistory: an
   let latestAgentMessage: string | null = null;
 
   const timeoutMs = 30000; // 30秒のタイムアウト
-  const streamWithTimeout = await Promise.race([
-    Promise.resolve(stream),
-    createTimeoutPromise(timeoutMs)
-  ]);
+  const streamWithTimeout = await Promise.race([Promise.resolve(stream), createTimeoutPromise(timeoutMs)]);
 
   for await (const chunk of streamWithTimeout as AsyncIterable<any>) {
     if (isGeneralistMessage(chunk)) {
@@ -206,7 +203,7 @@ export const setupHandler = async (ctx: Context) => {
       }
     }
   } catch (error) {
-    logger.error("message handler", "Error initializing agent:", error);
-    await ctx.reply("I'm sorry, an error occurred while initializing the agent.");
+    logger.error("message handler", "Error generating response", error);
+    await ctx.reply("I'm sorry, an error occurred while processing your request.");
   }
 };
