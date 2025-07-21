@@ -7,6 +7,7 @@ import { calculateTechnicalIndicators, convertTAtoDbFormat, type OHLCVData } fro
 import { getTACache } from "./lib/ta-cache";
 import { sendMessage } from "./lib/telegram/utils";
 import { fetchMultipleTokenOHLCV } from "./lib/vybe";
+import { escapeMarkdownV2 } from "./utils";
 import {
   batchUpsert,
   cleanupAllTokensOHLCVByCount,
@@ -361,7 +362,7 @@ const sendSignalToTelegram = async () => {
 
         const result = await sendMessage(
           holdingUsers.map((u) => u.userId),
-          signalData.body,
+          escapeMarkdownV2(signalData.body),
           {
             parse_mode: "MarkdownV2",
             buttons,
