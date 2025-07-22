@@ -3,7 +3,7 @@
   "scripts": {
     "dev": "wrangler dev --test-scheduled",
     "deploy": "wrangler deploy --minify",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "cf-typegen": "wrangler types src/types/worker-configuration.d.ts --env-interface CloudflareBindings",
     "db:generate": "dotenvx run -f .dev.vars -- drizzle-kit generate",
     "db:migrate": "dotenvx run -f .dev.vars -- drizzle-kit migrate",
     "db:push": "dotenvx run -f .dev.vars -- drizzle-kit push",
