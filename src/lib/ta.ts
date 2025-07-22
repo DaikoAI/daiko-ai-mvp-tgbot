@@ -110,12 +110,14 @@ const calculateOBVZScore = (obvHistory: number[]): number | undefined => {
   try {
     const recentValues = obvHistory.slice(-OBV_ZSCORE_CONFIG.period);
     const mean = recentValues.reduce((sum, val) => sum + val, 0) / recentValues.length;
-    const variance = recentValues.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / recentValues.length;
+    const variance = recentValues.reduce((sum, val) => sum + (val - mean) ** 2, 0) / recentValues.length;
     const stdDev = Math.sqrt(variance);
 
     if (stdDev === 0) return 0;
 
     const currentOBV = obvHistory[obvHistory.length - 1];
+    // Fix: Add undefined check for currentOBV
+    if (currentOBV === undefined) return undefined;
     return (currentOBV - mean) / stdDev;
   } catch (error) {
     logger.error("Failed to calculate OBV z-score", error);
@@ -140,6 +142,8 @@ const calculatePercentB = (data: OHLCVData[]): { percentB?: number; bbWidth?: nu
     if (!bb) return {};
 
     const currentPrice = closes[closes.length - 1];
+    // Fix: Add undefined check for currentPrice
+    if (currentPrice === undefined) return {};
     const percentB = (currentPrice - bb.lower) / (bb.upper - bb.lower);
     const bbWidth = (bb.upper - bb.lower) / bb.middle;
 
@@ -192,13 +196,16 @@ const calculateADX = (data: OHLCVData[]): { adx?: number; direction?: "UP" | "DO
     if (!adxValue) return {};
 
     // ADXの結果を数値に変換
-    const adxNumber = typeof adxValue === "number" ? adxValue : adxValue.adx;
+    // Fix: Add undefined check for adxValue.adx
+    const adxNumber = typeof adxValue === "number" ? adxValue : adxValue?.adx;
+    if (adxNumber === undefined) return {};
 
     // ADX direction determination (simplified)
     const recentCloses = data.slice(-3).map((d) => d.close);
     let direction: "UP" | "DOWN" | "NEUTRAL" = "NEUTRAL";
 
-    if (recentCloses.length >= 3) {
+    // Fix: Add bounds checking for array access
+    if (recentCloses.length >= 3 && recentCloses[0] !== undefined && recentCloses[2] !== undefined) {
       const trend = recentCloses[2] - recentCloses[0];
       if (trend > 0) direction = "UP";
       else if (trend < 0) direction = "DOWN";
@@ -238,7 +245,13 @@ export const calculateTechnicalIndicators = (data: OHLCVData[]): TechnicalAnalys
   }
 
   try {
-    const currentPrice = data[data.length - 1].close;
+    // Fix: Add undefined check for data array access
+    const lastDataPoint = data[data.length - 1];
+    if (!lastDataPoint) {
+      logger.error("Last data point is undefined");
+      return null;
+    }
+    const currentPrice = lastDataPoint.close;
     const closes = data.map((d) => d.close);
 
     // 1. VWAP & VWAP乖離率

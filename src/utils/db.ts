@@ -1,34 +1,33 @@
-import { AIMessage, HumanMessage, type BaseMessage } from "@langchain/core/messages";
+import { AIMessage, type BaseMessage, HumanMessage } from "@langchain/core/messages";
 import { and, desc, eq, getTableColumns, getTableName, inArray, notInArray, sql } from "drizzle-orm";
-import type { PgTable } from "drizzle-orm/pg-core";
-import { Result, err, ok } from "neverthrow";
+import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
+import { Interface } from "helius-sdk";
+import { err, ok, type Result } from "neverthrow";
 import { BATCH_PROCESSING, QUERY_LIMITS } from "../constants/database";
 import {
-  NewSignal,
-  NewToken,
-  Signal,
-  Token,
-  User,
   chatMessages,
   getDB,
+  type NewChatMessage,
+  type NewSignal,
+  type NewTechnicalAnalysis,
+  type NewToken,
+  type NewUser,
+  type Signal,
   schema,
   signal,
+  type TechnicalAnalysis,
+  type Token,
+  type TokenOHLCV,
   technicalAnalysis,
   tokenOHLCV,
   tokens,
-  userTokenHoldings,
-  users,
-  type NewChatMessage,
-  type NewTechnicalAnalysis,
-  type NewUser,
-  type TechnicalAnalysis,
-  type TokenOHLCV,
+  type User,
   type UserTokenHolding,
+  users,
+  userTokenHoldings,
 } from "../db";
-import { logger } from "./logger";
-
-import { Interface } from "helius-sdk";
 import { getAssetsByOwner } from "../lib/helius";
+import { logger } from "./logger";
 
 export const getTokens = async (): Promise<Token[]> => {
   const db = getDB();
@@ -107,7 +106,8 @@ export const getUserIds = async (excludeUserIds: string[] = []): Promise<string[
 export const getUserProfile = async (userId: string): Promise<User | null> => {
   const db = getDB();
   const [user] = await db.select().from(users).where(eq(users.userId, userId));
-  return user;
+  // Fix: Convert undefined to null for consistent return type
+  return user ?? null;
 };
 
 export const updateUserProfile = async (userId: string, profile: Partial<NewUser>): Promise<User | null> => {
@@ -115,29 +115,35 @@ export const updateUserProfile = async (userId: string, profile: Partial<NewUser
   const currentUser = await getUserProfile(userId);
 
   const [user] = await db.update(users).set(profile).where(eq(users.userId, userId)).returning();
+  // Fix: Convert undefined to null for consistent return type
+  const updatedUser = user ?? null;
 
   // walletAddressが変更された場合、token holdingsを更新
-  if (user?.walletAddress && user.walletAddress !== currentUser?.walletAddress) {
+  if (updatedUser?.walletAddress && updatedUser.walletAddress !== currentUser?.walletAddress) {
     try {
-      await updateUserTokenHoldings(user.userId, user.walletAddress);
+      await updateUserTokenHoldings(updatedUser.userId, updatedUser.walletAddress);
       logger.info(`Updated token holdings for user ${userId} after wallet address change`, {
         oldWalletAddress: currentUser?.walletAddress,
-        newWalletAddress: user.walletAddress,
+        newWalletAddress: updatedUser.walletAddress,
       });
     } catch (error) {
       logger.error(`Failed to update token holdings for user ${userId} after wallet address change`, {
-        walletAddress: user.walletAddress,
+        walletAddress: updatedUser.walletAddress,
         error: error instanceof Error ? error.message : String(error),
       });
     }
   }
 
-  return user;
+  return updatedUser;
 };
 
 export const createUserProfile = async (profile: NewUser): Promise<User> => {
   const db = getDB();
   const [user] = await db.insert(users).values(profile).returning();
+  // Fix: Add undefined check
+  if (!user) {
+    throw new Error("Failed to create user profile");
+  }
   return user;
 };
 
@@ -155,6 +161,11 @@ export const upsertUserProfile = async (profile: NewUser): Promise<User> => {
       set: profile,
     })
     .returning();
+
+  // Fix: Add undefined check
+  if (!user) {
+    throw new Error("Failed to upsert user profile");
+  }
 
   // walletAddressが設定されており、かつ変更があった場合のみtoken holdingsを更新
   if (user.walletAddress && user.walletAddress !== existingUser?.walletAddress) {
@@ -180,7 +191,8 @@ export const upsertUserProfile = async (profile: NewUser): Promise<User> => {
 export const getUserProfileByWalletAddress = async (walletAddress: string): Promise<User | null> => {
   const db = getDB();
   const [user] = await db.select().from(users).where(eq(users.walletAddress, walletAddress));
-  return user;
+  // Fix: Convert undefined to null for consistent return type
+  return user ?? null;
 };
 
 /**
@@ -281,10 +293,13 @@ export const createTechnicalAnalysis = async (
 
   // 最初のレコードをサンプルとしてログ出力
   if (data.length > 0) {
-    logger.info("Sample technical analysis data:", {
-      sampleRecord: data[0],
-      recordKeys: Object.keys(data[0]),
-    });
+    const sampleRecord = data[0];
+    if (sampleRecord) {
+      logger.info("Sample technical analysis data:", {
+        sampleRecord,
+        recordKeys: Object.keys(sampleRecord),
+      });
+    }
   }
 
   // データの基本検証
@@ -389,6 +404,11 @@ export const createSignal = async (signalData: NewSignal): Promise<Signal> => {
 
   try {
     const [createdSignal] = await db.insert(signal).values(sanitizedData).returning();
+
+    // Fix: Add undefined check for createdSignal
+    if (!createdSignal) {
+      throw new Error("Failed to create signal");
+    }
 
     logger.info("Signal created successfully", {
       signalId: createdSignal.id,
@@ -691,11 +711,6 @@ export const getLatestTokenPrice = async (tokenAddress: string): Promise<number 
 type ExtractTableColumns<T extends PgTable> = keyof T["_"]["columns"] & string;
 
 /**
- * スキーマから全テーブルを抽出する型
- */
-type SchemaTableType = (typeof schema)[keyof typeof schema];
-
-/**
  * バッチUpsertのオプション型
  */
 type BatchUpsertOptions<TTable extends PgTable> = {
@@ -738,17 +753,17 @@ type BatchResult = {
  */
 type TableInfo<TTable extends PgTable> = {
   readonly table: TTable;
-  readonly columns: Record<string, any>;
+  readonly columns: Record<string, PgColumn>;
   readonly name: string;
-  readonly conflictColumns: any[];
-  readonly updateObject: Record<string, any>;
+  readonly conflictColumns: PgColumn[];
+  readonly updateObject: Record<string, PgColumn>;
 };
 
 /**
  * テーブルかどうかを判定する型ガード
  */
-function isTable(value: any): value is PgTable {
-  return value && typeof value === "object" && value._ && value._.columns;
+function isTable(value: unknown): value is PgTable {
+  return value != null && typeof value === "object" && "_.name" in value;
 }
 
 /**
@@ -769,7 +784,7 @@ function extractTablesFromSchema(schema: Record<string, any>): Record<string, Pg
 /**
  * フィールド名の検証を行う
  */
-function validateFields<TTable extends PgTable>(
+function validateFields<_TTable extends PgTable>(
   fields: ReadonlyArray<string>,
   tableColumns: Record<string, any>,
   fieldType: "conflictTarget" | "updateFields",
@@ -801,7 +816,7 @@ function getDbColumnName(fieldName: string, tableColumns: Record<string, any>): 
 /**
  * テーブル情報を準備する
  */
-function prepareTableInfo<TTable extends PgTable, TData extends Record<string, any>>(
+function prepareTableInfo<TTable extends PgTable, _TData extends Record<string, any>>(
   table: TTable,
   options: BatchUpsertOptions<TTable>,
 ): Result<TableInfo<TTable>, BatchUpsertError> {
@@ -868,6 +883,8 @@ function validateBatchData<TData extends Record<string, any>>(
   if (batch.length === 0) return;
 
   const sampleRecord = batch[0];
+  // Fix: Add undefined check for sampleRecord
+  if (!sampleRecord) return;
   const recordKeys = Object.keys(sampleRecord);
 
   const missingConflictFields = options.conflictTarget.filter((field) => !recordKeys.includes(field));
@@ -990,7 +1007,12 @@ export async function batchUpsert<TTable extends PgTable, TData extends Record<s
   // 早期リターン：空データの場合
   if (!data || data.length === 0) {
     logger.warn("No data provided for batch upsert");
-    return { totalUpserted: 0, batchCount: 0, failedBatches: 0, hasErrors: false };
+    return {
+      totalUpserted: 0,
+      batchCount: 0,
+      failedBatches: 0,
+      hasErrors: false,
+    };
   }
 
   // 設定値の取得
@@ -1033,7 +1055,9 @@ export async function batchUpsert<TTable extends PgTable, TData extends Record<s
     return aggregateResults(allResults, batches.length, tableInfo.name);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`Batch upsert failed for table '${tableInfo.name}':`, { error: errorMessage });
+    logger.error(`Batch upsert failed for table '${tableInfo.name}':`, {
+      error: errorMessage,
+    });
     throw new Error(errorMessage);
   }
 }
@@ -1136,7 +1160,9 @@ async function syncUserHoldings(user: User): Promise<Result<string, string>> {
     return ok(user.userId);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to sync holdings for user ${user.userId}`, { error: errorMessage });
+    logger.error(`Failed to sync holdings for user ${user.userId}`, {
+      error: errorMessage,
+    });
     return err(errorMessage);
   }
 }
@@ -1170,11 +1196,12 @@ async function processBatchUserSync(
  * @returns 同期結果の統計情報
  */
 export const syncAllUserTokenHoldings = async (
-  options: {
-    batchSize?: number;
-    delayMs?: number;
-  } = {},
-): Promise<{ totalUsers: number; successCount: number; failureCount: number }> => {
+  options: { batchSize?: number; delayMs?: number } = {},
+): Promise<{
+  totalUsers: number;
+  successCount: number;
+  failureCount: number;
+}> => {
   const { batchSize = 10, delayMs = 1000 } = options;
 
   const allUsers = await getUsers();
@@ -1197,6 +1224,8 @@ export const syncAllUserTokenHoldings = async (
   // バッチごとに処理
   for (let i = 0; i < batches.length; i++) {
     const batch = batches[i];
+    // Fix: Add undefined check for batch
+    if (!batch) continue;
     const batchNumber = i + 1;
 
     const batchResult = await processBatchUserSync(batch, batchNumber, batches.length);
@@ -1259,7 +1288,12 @@ export const getLastSignalTime = async (tokenAddress: string): Promise<Date | nu
       return null;
     }
 
-    return result[0].timestamp;
+    // Fix: Add undefined check for result[0]
+    const firstResult = result[0];
+    if (!firstResult) {
+      return null;
+    }
+    return firstResult.timestamp;
   } catch (error) {
     logger.error("Failed to get last signal time", {
       error: error instanceof Error ? error.message : String(error),

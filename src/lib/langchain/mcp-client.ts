@@ -1,8 +1,8 @@
-import { DynamicStructuredTool, Tool } from "@langchain/core/tools";
-import { BaseCheckpointSaver } from "@langchain/langgraph";
+import type { DynamicStructuredTool, Tool } from "@langchain/core/tools";
+import type { BaseCheckpointSaver } from "@langchain/langgraph";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { MultiServerMCPClient } from "@langchain/mcp-adapters";
-import { ChatOpenAI } from "@langchain/openai";
+import type { ChatOpenAI } from "@langchain/openai";
 import { logger } from "../../utils/logger";
 import { sequentialThinking } from "./tools/mcp-server";
 
@@ -54,7 +54,7 @@ let initializationPromise: Promise<void> | null = null;
  * Get available MCP tools
  * Initialize client if not already done
  */
-export const getMCPTools = async (): Promise<any[]> => {
+export const getMCPTools = async (): Promise<Tool[]> => {
   if (!initializationPromise) {
     initializationPromise = initMCPClient().finally(() => {
       initializationPromise = null;
@@ -62,7 +62,7 @@ export const getMCPTools = async (): Promise<any[]> => {
     await initializationPromise;
   }
 
-  return mcpTools;
+  return mcpTools as unknown as Tool[];
 };
 
 /**

@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeAll } from "vitest";
-import { fetchTokenOHLCV, fetchMultipleTokenOHLCV } from "../../../src/lib/vybe";
+import { describe, it, expect, beforeAll } from "bun:test";
 import type { VybeTimeframe } from "../../../src/lib/vybe";
+import { fetchMultipleTokenOHLCV, fetchTokenOHLCV } from "../../../src/lib/vybe";
 
 describe("Vybe Network API Client - Integration Tests", () => {
   // 実際のSolana mint addresses
@@ -151,7 +151,9 @@ describe("Vybe Network API Client - Integration Tests", () => {
 
     it("should remove duplicate addresses", async () => {
       const duplicateAddresses = [SOL_MINT, SOL_MINT, USDC_MINT];
-      const result = await fetchMultipleTokenOHLCV(duplicateAddresses, "1h", { limit: 5 });
+      const result = await fetchMultipleTokenOHLCV(duplicateAddresses, "1h", {
+        limit: 5,
+      });
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {

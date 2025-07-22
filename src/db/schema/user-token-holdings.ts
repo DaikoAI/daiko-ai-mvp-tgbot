@@ -1,8 +1,7 @@
-import { pgTable, text, timestamp, primaryKey, decimal, index, unique } from "drizzle-orm/pg-core";
-
+import { index, pgTable, primaryKey, text, timestamp, unique } from "drizzle-orm/pg-core";
+import { tokens } from "./tokens";
 // references()で実際の値が必要なため、通常のimportを使用
 import { users } from "./user";
-import { tokens } from "./tokens";
 
 /**
  * ユーザーとトークンの保有関係を管理するテーブル

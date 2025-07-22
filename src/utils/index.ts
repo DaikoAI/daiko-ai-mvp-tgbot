@@ -7,28 +7,27 @@ import { logger } from "./logger";
 export const createTimeoutPromise = (timeoutMs: number = TIMEOUT_MS): Promise<never> =>
   new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), timeoutMs));
 
-export const dumpTokenUsage = (chunk: StreamChunk) => {
-  // Dump token usage
+export const logUsageMetadata = (chunk: StreamChunk) => {
   if (
     "analyzer" in chunk &&
     chunk.analyzer?.messages?.length > 0 &&
     chunk.analyzer.messages[chunk.analyzer.messages.length - 1]?.usage_metadata
   ) {
-    logger.info(
-      "message handler",
-      "Usage metadata (analyzer)",
-      chunk.analyzer.messages[chunk.analyzer.messages.length - 1].usage_metadata,
-    );
+    // Fix: Extract message first to avoid undefined array access
+    const lastAnalyzerMessage = chunk.analyzer.messages[chunk.analyzer.messages.length - 1];
+    if (lastAnalyzerMessage?.usage_metadata) {
+      logger.info("message handler", "Usage metadata (analyzer)", lastAnalyzerMessage.usage_metadata);
+    }
   } else if (
     "generalist" in chunk &&
     chunk.generalist?.messages?.length > 0 &&
     chunk.generalist.messages[chunk.generalist.messages.length - 1]?.usage_metadata
   ) {
-    logger.info(
-      "message handler",
-      "Usage metadata (generalist)",
-      chunk.generalist.messages[chunk.generalist.messages.length - 1].usage_metadata,
-    );
+    // Fix: Extract message first to avoid undefined array access
+    const lastGeneralistMessage = chunk.generalist.messages[chunk.generalist.messages.length - 1];
+    if (lastGeneralistMessage?.usage_metadata) {
+      logger.info("message handler", "Usage metadata (generalist)", lastGeneralistMessage.usage_metadata);
+    }
   }
 };
 
@@ -57,7 +56,7 @@ export const convertToString = (value: number | undefined): string | null => {
 
 // Escape function for MarkdownV2
 export const escapeMarkdownV2 = (text: string): string => {
-  return text.replace(/[_*\[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
+  return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
 };
 
 // Escape function for HTML

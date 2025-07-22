@@ -27,10 +27,21 @@ export const parser = StructuredOutputParser.fromZodSchema(signalAnalysisSchema)
  * Standard input variables for signal analysis
  */
 const ANALYSIS_INPUT_VARIABLES = [
-  "tokenSymbol", "tokenAddress", "currentPrice", "timestamp",
-  "rsi", "vwapDeviation", "percentB", "adx", "atrPercent", "obvZScore",
-  "triggeredIndicators", "signalCandidates", "confluenceScore", "riskLevel",
-  "formatInstructions"
+  "tokenSymbol",
+  "tokenAddress",
+  "currentPrice",
+  "timestamp",
+  "rsi",
+  "vwapDeviation",
+  "percentB",
+  "adx",
+  "atrPercent",
+  "obvZScore",
+  "triggeredIndicators",
+  "signalCandidates",
+  "confluenceScore",
+  "riskLevel",
+  "formatInstructions",
 ];
 
 /**
@@ -126,11 +137,22 @@ Provide: relevantSources, overallConfidence (0-1), primaryCause, recommendation 
  */
 export const signalFormattingPrompt = new PromptTemplate({
   inputVariables: [
-    "tokenSymbol", "tokenAddress", "signalType", "direction", "currentPrice",
-    "confidence", "riskLevel", "timeframe", "reasoning", "keyFactors",
-    "marketSentiment", "priceExpectation", "technicalData", "language"
+    "tokenSymbol",
+    "tokenAddress",
+    "signalType",
+    "direction",
+    "currentPrice",
+    "confidence",
+    "riskLevel",
+    "timeframe",
+    "reasoning",
+    "keyFactors",
+    "marketSentiment",
+    "priceExpectation",
+    "technicalData",
+    "language",
   ],
-  template: `You are a crypto signal formatter creating concise, scannable Telegram messages for users without technical analysis knowledge.
+  template: `You are a crypto signal formatter creating concise, scannable Telegram messages.
 
 # IMPORTANT
 Write the entire output in **{language}**. Use half-width dashes (-) throughout.
@@ -138,33 +160,47 @@ Write the entire output in **{language}**. Use half-width dashes (-) throughout.
 # Input Analysis
 **Token**: {tokenSymbol} ({tokenAddress})
 **Signal**: {signalType} | **Direction**: {direction}
-**Price**: {currentPrice} | **Confidence**: {confidence}
+**Price**: {currentPrice} | **Confidence**: {confidence}%
 **Risk**: {riskLevel} | **Timeframe**: {timeframe}
 **Reasoning**: {reasoning}
 **Factors**: {keyFactors}
-**Sentiment**: {marketSentiment}
-**Expectation**: {priceExpectation}
 **Technical**: {technicalData}
 
-# Message Structure
-- Line 1: [EMOJI] **[ACTION] $TOKEN**
-- Line 2: 📊 Price: **$PRICE** | 🎯 Confidence: **X%** | ⚠️ Risk: **LEVEL**
-- Line 3: ⏰ Timeframe: **LABEL** (NOTE)
-- Market Snapshot: 1-2 sentences with analogies
-- Why: Up to 3 technical explanations
-- Suggested Action: Concrete advice
-- DYOR disclaimer
+# Required Format (EXACT):
+Line 1: [EMOJI] [ACTION] [tokenname] - [Risk Level] Risk
+Line 2: Price: $[PRICE] Confidence: [X] %
+Line 3: Timeframe: [TIMEFRAME] ([recheck] recommended)
+Line 4: (empty)
+Line 5: 🗒️ Market Snapshot
+Line 6: [Brief market explanation]
+Line 7: (empty)
+Line 8: 🔍 Why?
+Line 9-11: • [Technical indicator] - [simple description]
+Line 12: (empty)
+Line 13: 🎯 Suggested Action
+Line 14: [Action recommendation]
+Line 15: (empty)
+Line 16: ⚠️ DYOR - Always do your own research.
 
 # Format Rules
 **Emojis**: BUY → 🚀, SELL → 🚨, NEUTRAL → 📊
-**Token**: $ prefix, uppercase (e.g., $BONK)
-**Price**: Appropriate decimals (max 8, prefer 5)
-**Confidence**: Integer % without space (70%)
-**Risk**: Title case (Low/Medium/High)
+**Token**: lowercase (e.g., titcoin not TITCOIN)
+**Price**: Full precision as provided (e.g., $0.012491810862262155)
+**Confidence**: Plain integer without % in confidence field, but add % after
+**Risk**: Title case (Low/Medium/High) + " Risk"
 **Timeframes**:
 - SHORT → Short-term (1-4h re-check)
 - MEDIUM → Mid-term (4-12h re-check)
 - LONG → Long-term (12-24h re-check)
+
+# Technical Indicators Format
+Extract 3 key indicators from technicalData and format as:
+• [IndicatorName] [Value] - [simple condition]
+
+Examples:
+• RSI 76 - overbought
+• Bollinger +2σ breakout - price above upper band
+• ADX 13 - weak trend
 
 # Output
 Return JSON with: level (1|2|3), title, message, priority (LOW|MEDIUM|HIGH), tags (array)
@@ -174,5 +210,5 @@ Return JSON with: level (1|2|3), title, message, priority (LOW|MEDIUM|HIGH), tag
 - 2: MEDIUM risk OR confidence 60-79%
 - 1: Otherwise
 
-Write complete formatted message in {language}.`,
+Create the exact format shown above in {language}.`,
 });

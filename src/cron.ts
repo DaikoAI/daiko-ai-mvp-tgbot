@@ -3,6 +3,7 @@ import { generateSignal } from "./agents/signal/graph";
 import { OHLCV_RETENTION } from "./constants/database";
 import { isExcludedToken } from "./constants/signal-cooldown";
 import { tokenOHLCV } from "./db";
+import type { TechnicalAnalysis } from "./db/schema/technical-analysis";
 import { createPhantomButtons } from "./lib/phantom";
 import { shouldSkipDueToCooldown } from "./lib/signal-cooldown";
 import { calculateTechnicalIndicators, convertTAtoDbFormat, type OHLCVData } from "./lib/ta";
@@ -17,8 +18,8 @@ import {
   createTechnicalAnalysis,
   getRecentSignals,
   getTokenOHLCV,
-  getTokens,
   getTokenSymbol,
+  getTokens,
   getUnprocessedTechnicalAnalyses,
   getUsersHoldingToken,
   markTechnicalAnalysisAsProcessed,
@@ -93,7 +94,7 @@ const updateTokenOHLCVTask = async () => {
 /**
  * Safely converts technical analysis string values to numbers, filtering out invalid data
  */
-function validateTechnicalAnalysis(analysis: any) {
+function validateTechnicalAnalysis(analysis: TechnicalAnalysis) {
   const indicators = {
     atrPercent: safeParseNumber(analysis.atr_percent),
     adx: safeParseNumber(analysis.adx),
@@ -104,7 +105,7 @@ function validateTechnicalAnalysis(analysis: any) {
   };
 
   // Count valid indicators
-  const validCount = Object.values(indicators).filter(value => value !== null).length;
+  const validCount = Object.values(indicators).filter((value) => value !== null).length;
 
   // Require minimum 3 valid indicators for reliable analysis
   if (validCount < 3) {
@@ -171,6 +172,10 @@ const technicalAnalysisTask = async () => {
 
     // 最新の価格とタイムスタンプを取得
     const latestData = numericData[numericData.length - 1];
+    if (!latestData) {
+      logger.warn(`No latest data available for ${token.symbol}`);
+      return null;
+    }
     const currentPrice = latestData.close;
     const currentTimestamp = latestData.timestamp;
 
@@ -179,10 +184,10 @@ const technicalAnalysisTask = async () => {
       token: token.symbol,
       price: currentPrice.toFixed(6),
       vwap: analysis.vwap?.toFixed(6),
-      vwapDeviation: analysis.vwapDeviation?.toFixed(2) + "%",
-      obvZScore: analysis.obvZScore?.toFixed(1) + "σ",
+      vwapDeviation: `${analysis.vwapDeviation?.toFixed(2)}%`,
+      obvZScore: `${analysis.obvZScore?.toFixed(1)}σ`,
       percentB: analysis.percentB?.toFixed(2),
-      atrPercent: analysis.atrPercent?.toFixed(1) + "%",
+      atrPercent: `${analysis.atrPercent?.toFixed(1)}%`,
       adx: analysis.adx?.toFixed(0),
       adxDirection: analysis.adxDirection,
       rsi: analysis.rsi?.toFixed(0),
@@ -229,7 +234,7 @@ const technicalAnalysisTask = async () => {
 /**
  * 個別トークンのシグナル生成処理
  */
-const processTokenSignal = async (analysis: any) => {
+const processTokenSignal = async (analysis: TechnicalAnalysis) => {
   // トークン情報を取得
   const { tokens, tokenOHLCV, getDB } = await import("./db");
 
@@ -243,6 +248,10 @@ const processTokenSignal = async (analysis: any) => {
   }
 
   const token = tokenInfo[0];
+  if (!token) {
+    logger.warn("Token data is undefined", { tokenAddress: analysis.token });
+    return null;
+  }
 
   // 現在価格を取得（最新のOHLCVから）
   const latestOHLCV = await db
@@ -257,7 +266,13 @@ const processTokenSignal = async (analysis: any) => {
     return null;
   }
 
-  const currentPrice = parseFloat(latestOHLCV[0].close);
+  const latestOHLCVData = latestOHLCV[0];
+  if (!latestOHLCVData) {
+    logger.warn("Latest OHLCV data is undefined", { tokenAddress: analysis.token });
+    return null;
+  }
+
+  const currentPrice = parseFloat(latestOHLCVData.close);
 
   logger.info("Starting signal generation for token", {
     tokenAddress: analysis.token,
@@ -396,7 +411,10 @@ const generateSignalTask = async () => {
     logger.info("Signal generation task completed", {
       totalAnalyzed: unprocessedAnalyses.length,
       signalsGenerated: generatedSignals.length,
-      signals: generatedSignals.map((s) => ({ id: s?.signalId, token: s?.token })),
+      signals: generatedSignals.map((s) => ({
+        id: s?.signalId,
+        token: s?.token,
+      })),
     });
   } catch (error) {
     logger.error("Signal generation task failed", {
@@ -454,7 +472,12 @@ const sendSignalToTelegram = async () => {
             signalId: signalData.id,
             tokenAddress: signalData.token,
           });
-          return { signalId: signalData.id, success: false, systemError: true, stats: null };
+          return {
+            signalId: signalData.id,
+            success: false,
+            systemError: true,
+            stats: null,
+          };
         }
 
         const stats = result.value;
@@ -469,7 +492,12 @@ const sendSignalToTelegram = async () => {
             failedUserIds: stats.failedUsers,
             firstError: stats.results.find((r) => !r.success)?.error,
           });
-          return { signalId: signalData.id, success: false, systemError: false, stats };
+          return {
+            signalId: signalData.id,
+            success: false,
+            systemError: false,
+            stats,
+          };
         }
 
         // Log success with detailed stats
@@ -479,7 +507,7 @@ const sendSignalToTelegram = async () => {
           totalUsers: stats.totalUsers,
           successCount: stats.successCount,
           failureCount: stats.failureCount,
-          successRate: stats.totalUsers > 0 ? ((stats.successCount / stats.totalUsers) * 100).toFixed(1) + "%" : "0%",
+          successRate: stats.totalUsers > 0 ? `${((stats.successCount / stats.totalUsers) * 100).toFixed(1)}%` : "0%",
         });
 
         // Log partial failures if they exist
@@ -494,13 +522,23 @@ const sendSignalToTelegram = async () => {
           });
         }
 
-        return { signalId: signalData.id, success: true, systemError: false, stats };
+        return {
+          signalId: signalData.id,
+          success: true,
+          systemError: false,
+          stats,
+        };
       } catch (error) {
         logger.error(`Error processing signal ${signalData.id}:`, {
           error: error instanceof Error ? error.message : String(error),
           signalId: signalData.id,
         });
-        return { signalId: signalData.id, success: false, systemError: true, stats: null };
+        return {
+          signalId: signalData.id,
+          success: false,
+          systemError: true,
+          stats: null,
+        };
       }
     });
 
@@ -529,7 +567,7 @@ const sendSignalToTelegram = async () => {
       failedSignals,
       systemErrors,
       successRate:
-        totalSignals > 0 ? ((successfulSignals / (totalSignals - skippedSignals)) * 100).toFixed(1) + "%" : "0%",
+        totalSignals > 0 ? `${((successfulSignals / (totalSignals - skippedSignals)) * 100).toFixed(1)}%` : "0%",
     });
 
     // エラーがある場合は警告を出力
@@ -580,7 +618,7 @@ const syncUserTokenHoldingsTask = async () => {
       totalUsers: result.totalUsers,
       successCount: result.successCount,
       failureCount: result.failureCount,
-      successRate: result.totalUsers > 0 ? ((result.successCount / result.totalUsers) * 100).toFixed(1) + "%" : "0%",
+      successRate: result.totalUsers > 0 ? `${((result.successCount / result.totalUsers) * 100).toFixed(1)}%` : "0%",
     });
   } catch (error) {
     logger.error("Failed to sync user token holdings", {

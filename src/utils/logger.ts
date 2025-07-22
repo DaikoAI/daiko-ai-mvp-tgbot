@@ -3,19 +3,19 @@ const getTimestamp = () => {
 };
 
 export const logger = {
-  log: (...args: any[]) => {
+  log: (...args: unknown[]) => {
     console.log(`[${getTimestamp()}]`, ...args);
   },
-  info: (...args: any[]) => {
+  info: (...args: unknown[]) => {
     console.info(`[${getTimestamp()}]`, ...args);
   },
-  debug: (...args: any[]) => {
+  debug: (...args: unknown[]) => {
     console.debug(`[${getTimestamp()}]`, ...args);
   },
-  warn: (...args: any[]) => {
+  warn: (...args: unknown[]) => {
     console.warn(`[${getTimestamp()}]`, ...args);
   },
-  error: (...args: any[]) => {
+  error: (...args: unknown[]) => {
     console.error(`[${getTimestamp()}]`, ...args);
   },
 };

@@ -1,6 +1,6 @@
 import type { Bot, Context } from "grammy";
 import { InlineKeyboard } from "grammy";
-import { NewUser } from "../../db";
+import type { NewUser } from "../../db";
 import { SetupStep } from "../../types";
 import { clearChatHistory, getUserProfile, updateUserProfile, upsertUserProfile } from "../../utils/db";
 import { logger } from "../../utils/logger";
@@ -190,7 +190,7 @@ export const proceedToNextStep = async (ctx: Context, userId: string, currentSte
     }
 
     case SetupStep.COMPLETE: {
-      const profile = await getUserProfile(userId);
+      const _profile = await getUserProfile(userId);
 
       const profileSummary =
         "**Setup is complete!** \n I'll keep an eye on your tokens and alert you with the reason when danger's near.";

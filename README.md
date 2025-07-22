@@ -75,6 +75,112 @@ bun install
 bun run dev
 ```
 
+## Testing
+
+### Environment Setup for Tests
+
+Before running tests, you need to set up environment variables. The project uses `.dev.vars` for development and `.env.test` for testing.
+
+#### Option 1: Copy `.dev.vars` to `.env.test` (Recommended)
+
+```bash
+# Copy your development environment variables to test environment
+cp .dev.vars .env.test
+```
+
+#### Option 2: Create `.env.test` manually
+
+Create a `.env.test` file with the same variables as `.dev.vars`:
+
+```bash
+# Test Environment Variables
+DATABASE_URL=postgresql://username:password@hostname:port/database_test
+TELEGRAM_BOT_TOKEN=your_test_bot_token
+OPENAI_API_KEY=your_openai_api_key
+HELIUS_API_KEY=your_helius_api_key
+VYBE_API_KEY=your_vybe_api_key
+ADMIN_API_KEY=your_admin_api_key
+CRON_SECRET=your_cron_secret
+```
+
+#### Option 3: Use dotenvx with `.dev.vars` (Current setup)
+
+The current test scripts use `dotenvx` to load environment variables from `.dev.vars`:
+
+```bash
+# Test commands with dotenvx (already configured)
+bun run test        # Uses dotenvx run -f .dev.vars -- bun test
+bun run test:unit   # Uses dotenvx run -f .dev.vars -- bun test tests/unit
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+bun run test
+
+# Run unit tests only
+bun run test:unit
+
+# Run integration tests only
+bun run test:integration
+
+# Run tests with coverage
+bun run test:coverage
+```
+
+### Note on Test Environment
+
+- Tests that require external APIs (OpenAI, Helius, Vybe) will fail if the corresponding API keys are not set
+- Integration tests may require valid API credentials
+- Unit tests focus on testing logic without external dependencies
+
+## Turborepo Integration
+
+このプロジェクトはTurborepoを使用してビルド、テスト、フォーマットのタスクを高速化しています。
+
+### Main Commands (Turborepo対応)
+
+```bash
+# ビルド (キャッシュ対応)
+bun run build
+
+# テスト (キャッシュ対応、dotenvx使用)
+bun run test
+bun run test:unit
+bun run test:integration
+bun run test:coverage
+
+# フォーマット (キャッシュ対応)
+bun run format
+
+# デプロイ (依存関係付き: build → test → deploy)
+bun run deploy
+```
+
+### Cache Benefits
+
+- **初回実行**: フルビルド・テスト実行
+- **2回目以降**: ファイルが変更されていない場合はキャッシュから結果を取得
+- **並列実行**: 複数のタスクを同時実行で高速化
+- **依存関係管理**: タスク間の依存関係を自動管理
+- **dotenvx統合**: テストコマンドで`.dev.vars`の環境変数が自動読み込み
+
+### Internal Commands
+
+実際に実行される元のコマンド（直接実行可能）:
+
+```bash
+# 直接実行 (キャッシュなし)
+bun run _build         # tsup によるビルド
+bun run _test          # dotenvx + vitest 全テスト
+bun run _test:unit     # dotenvx + vitest ユニットテスト
+bun run _test:coverage # dotenvx + vitest カバレッジテスト
+bun run _test:integration # dotenvx + vitest インテグレーションテスト
+bun run _format        # prettier フォーマット
+bun run _deploy        # wrangler デプロイ
+```
+
 ## Database Commands
 
 ```bash

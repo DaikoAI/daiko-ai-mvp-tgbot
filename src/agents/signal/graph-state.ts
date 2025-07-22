@@ -58,7 +58,7 @@ export const signalGraphState = Annotation.Root({
 
   // === Evidence Search Results (for future implementation) ===
   evidenceResults: Annotation<{
-    relevantSources: any[];
+    relevantSources: Record<string, unknown>[];
     overallConfidence: number;
     primaryCause: string;
     recommendation: "INCLUDE" | "EXCLUDE" | "UNCERTAIN";

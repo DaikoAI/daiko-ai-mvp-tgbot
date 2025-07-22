@@ -1,6 +1,11 @@
 import { type DAS, Helius, Interface } from "helius-sdk";
 
-export const helius = new Helius(process.env.HELIUS_API_KEY!);
+const heliusApiKey = process.env.HELIUS_API_KEY;
+if (!heliusApiKey) {
+  throw new Error("HELIUS_API_KEY environment variable is required");
+}
+
+export const helius = new Helius(heliusApiKey);
 
 export const getAssetsByOwner = async (
   ownerAddress: string,

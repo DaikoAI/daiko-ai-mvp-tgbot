@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { initTelegramGraph } from "../../../src/agents/telegram/graph";
 
 describe("Telegram Agent", () => {
