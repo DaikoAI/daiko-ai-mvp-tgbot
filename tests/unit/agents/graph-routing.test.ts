@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { managerRouter } from "../../../src/agents/telegram/graph-route";
+import { describe, it, expect } from "bun:test";
 import { END } from "@langchain/langgraph";
+import { managerRouter } from "../../../src/agents/telegram/graph-route";
 
 describe("Graph Routing", () => {
   it("should route to dataFetch when data fetch flag is true", () => {

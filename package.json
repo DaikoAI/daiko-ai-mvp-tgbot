@@ -12,11 +12,12 @@
     "cron:run": "bun --env-file=.dev.vars run scripts/run-cron.ts",
     "broadcast": "bun --env-file=.dev.vars run scripts/test-broadcast.ts",
     "build": "tsup src/**/*.ts --dts --format esm",
-    "format": "prettier --write .",
-    "test": "dotenvx run -f .dev.vars -- vitest run",
-    "test:coverage": "dotenvx run -f .dev.vars -- vitest run --coverage",
-    "test:unit": "dotenvx run -f .dev.vars -- vitest run tests/unit",
-    "test:integration": "dotenvx run -f .dev.vars -- vitest run tests/integration"
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "test": "dotenvx run -f .dev.vars -- bun test",
+    "test:coverage": "dotenvx run -f .dev.vars -- bun test --coverage",
+    "test:unit": "dotenvx run -f .dev.vars -- bun test tests/unit",
+    "test:integration": "dotenvx run -f .dev.vars -- bun test tests/integration"
   },
   "dependencies": {
     "@langchain/community": "^0.3.48",
@@ -36,20 +37,13 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.1.2",
     "@cloudflare/workers-types": "^4.20250712.0",
+    "@types/bun": "^1.2.19",
     "@types/pg": "^8.15.4",
-    "@vitest/coverage-v8": "3.2.4",
     "drizzle-kit": "^0.31.4",
-    "prettier": "^3.6.2",
     "tsup": "^8.5.0",
-    "vitest": "^3.2.4",
     "wrangler": "^4.24.3"
-  },
-  "prettier": {
-    "semi": true,
-    "singleQuote": false,
-    "trailingComma": "all",
-    "printWidth": 120
   },
   "packageManager": "bun@1.2.18"
 }

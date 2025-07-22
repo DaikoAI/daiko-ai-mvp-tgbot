@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { SIGNAL_THRESHOLDS } from "../../../src/constants/signal-thresholds";
 import type { TechnicalAnalysis } from "../../../src/db/schema/technical-analysis";
 import { applyStaticSignalFilter } from "../../../src/lib/static-signal-filter";

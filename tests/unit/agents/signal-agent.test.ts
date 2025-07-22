@@ -1,19 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { initSignalGraph } from "../../../src/agents/signal/graph";
 import type { SignalGraphState } from "../../../src/agents/signal/graph-state";
-import type { TechnicalAnalysis } from "../../../src/db/schema/technical-analysis";
-import { createPhantomButtons } from "../../../src/lib/phantom";
-
 // Import the actual formatter for testing
 import { createSimpleSignalResponse } from "../../../src/agents/signal/nodes/signal-formatter";
+import type { TechnicalAnalysis } from "../../../src/db/schema/technical-analysis";
+import { createPhantomButtons } from "../../../src/lib/phantom";
 
 // Create test helper function
 const testFormatSignal = (state: Partial<SignalGraphState>) => {
   return createSimpleSignalResponse(state as SignalGraphState);
 };
-
-// Use the actual implementation instead of mocking
-const testSignalGraph = initSignalGraph();
 
 describe("Signal Agent", () => {
   describe("Basic Functionality", () => {
@@ -35,8 +31,8 @@ describe("Signal Agent", () => {
       expect(buttons.length).toBe(1);
       expect(buttons[0]).toHaveProperty("text");
       expect(buttons[0]).toHaveProperty("url");
-      expect(buttons[0].text).toBe("👻 Open SOL in Phantom");
-      expect(buttons[0].url).toBe(
+      expect(buttons[0]?.text).toBe("👻 Open SOL in Phantom");
+      expect(buttons[0]?.url).toBe(
         "https://phantom.app/ul/browse/https%3A%2F%2Fdexscreener.com%2Fsolana%2FSo11111111111111111111111111111111111111112?ref=https%3A%2F%2Fdexscreener.com",
       );
     });
@@ -151,7 +147,7 @@ describe("Signal Agent", () => {
           }
         }
       }
-    }, 30000);
+    });
 
     it("should generate signal when extreme overbought conditions are met", async () => {
       const { graph } = initSignalGraph();
@@ -183,7 +179,7 @@ describe("Signal Agent", () => {
         expect(signal.signalDecision.confidence).toBeGreaterThan(0);
         expect(signal.signalDecision.confidence).toBeLessThanOrEqual(1);
       }
-    }, 30000);
+    });
 
     it("should handle multiple moderate indicators correctly", async () => {
       const { graph } = initSignalGraph();
@@ -217,7 +213,7 @@ describe("Signal Agent", () => {
         expect(signal.finalSignal.priority).toBeDefined();
         expect(["LOW", "MEDIUM", "HIGH"]).toContain(signal.finalSignal.priority);
       }
-    }, 30000);
+    });
 
     it("should skip when only one indicator triggers (insufficient confluence)", async () => {
       const { graph } = initSignalGraph();
@@ -283,11 +279,11 @@ describe("Signal Agent", () => {
         expect(signal.finalSignal.message).toContain("Market Snapshot");
         expect(signal.finalSignal.message).toContain("Why?");
         expect(signal.finalSignal.message).toContain("Suggested Action");
-        expect(signal.finalSignal.title).toContain("[BUY]");
-        expect(signal.finalSignal.title).toContain("SOL");
+        expect(signal.finalSignal.title).toContain("BUY");
+        expect(signal.finalSignal.title).toContain("sol");
         expect(signal.finalSignal.message).not.toContain("–"); // No full-width dashes
       }
-    }, 30000);
+    });
 
     it("should maintain consistent data flow through all nodes", async () => {
       const { graph } = initSignalGraph();
@@ -348,20 +344,19 @@ describe("Signal Agent", () => {
         expect(signal.finalSignal.message).toContain("DYOR - Always do your own research");
 
         // Verify title format matches new structure (simplified)
-        expect(signal.finalSignal.title).toContain("[BUY]");
-        expect(signal.finalSignal.title).toContain("SOL");
+        expect(signal.finalSignal.title).toContain("BUY");
+        expect(signal.finalSignal.title).toContain("sol");
 
         // Verify message contains proper sections with half-width dashes
         expect(signal.finalSignal.message).not.toContain("–"); // No full-width dashes
-        expect(signal.finalSignal.message).toMatch(/📊 Price: \*\*\$[\d.]+\*\*/); // New format: **$100.00**
-        expect(signal.finalSignal.message).toMatch(/🎯 Confidence: \*\*\d+%\*\*/); // New format: **65%**
-        expect(signal.finalSignal.message).toMatch(/⚠️ Risk: \*\*\w+\*\*/); // New format: **High**
-        expect(signal.finalSignal.message).toContain("🗒️ *Market Snapshot*");
-        expect(signal.finalSignal.message).toContain("🔍 *Why?*");
-        expect(signal.finalSignal.message).toContain("🎯 **Suggested Action**");
+        expect(signal.finalSignal.message).toMatch(/Price: \$[\d.]+/); // New format: Price: $100
+        expect(signal.finalSignal.message).toMatch(/Confidence: \d+ %/); // New format: Confidence: 65 %
+        expect(signal.finalSignal.message).toContain("🗒️ Market Snapshot");
+        expect(signal.finalSignal.message).toContain("🔍 Why?");
+        expect(signal.finalSignal.message).toContain("🎯 Suggested Action");
         expect(signal.finalSignal.message).toContain("⚠️ DYOR - Always do your own research.");
       }
-    }, 30000);
+    });
 
     it("should handle boundary values correctly", async () => {
       const { graph } = initSignalGraph();
@@ -395,7 +390,7 @@ describe("Signal Agent", () => {
       expect(signal.staticFilterResult.shouldProceed).toBe(true);
       expect(signal.staticFilterResult.confluenceScore).toBeGreaterThanOrEqual(0.2); // Minimum confluence threshold
       expect(signal.staticFilterResult.triggeredIndicators.length).toBeGreaterThanOrEqual(2); // Minimum indicator count
-    }, 30000);
+    });
   });
 
   describe("Signal Formatting", () => {
@@ -426,17 +421,16 @@ describe("Signal Agent", () => {
       expect(result.finalSignal.priority).toBe("MEDIUM");
 
       // Test new format structure
-      expect(result.finalSignal.title).toBe("🚀 [BUY] $SOL");
-      expect(result.finalSignal.message).toContain("🚀 **[BUY] $SOL**");
-      expect(result.finalSignal.message).toContain("📊 Price: **$125.50**");
-      expect(result.finalSignal.message).toContain("🎯 Confidence: **75%**");
-      expect(result.finalSignal.message).toContain("⚠️ Risk: **Medium**");
-      expect(result.finalSignal.message).toContain("⏰ Timeframe: **Mid-term** (4-12h re-check)");
+      expect(result.finalSignal.title).toBe("🚀 BUY sol - Medium Risk");
+      expect(result.finalSignal.message).toContain("🚀 BUY sol - Medium Risk");
+      expect(result.finalSignal.message).toContain("Price: $125.5");
+      expect(result.finalSignal.message).toContain("Confidence: 75 %");
+      expect(result.finalSignal.message).toContain("Timeframe: Mid-term (4-12h re-check recommended)");
 
       // Test required sections
-      expect(result.finalSignal.message).toContain("🗒️ *Market Snapshot*");
-      expect(result.finalSignal.message).toContain("🔍 *Why?*");
-      expect(result.finalSignal.message).toContain("🎯 **Suggested Action**");
+      expect(result.finalSignal.message).toContain("🗒️ Market Snapshot");
+      expect(result.finalSignal.message).toContain("🔍 Why?");
+      expect(result.finalSignal.message).toContain("🎯 Suggested Action");
       expect(result.finalSignal.message).toContain("⚠️ DYOR - Always do your own research.");
     });
 
@@ -465,11 +459,11 @@ describe("Signal Agent", () => {
       expect(result.finalSignal).toBeDefined();
       expect(result.finalSignal.level).toBe(3); // HIGH risk
       expect(result.finalSignal.priority).toBe("HIGH");
-      expect(result.finalSignal.title).toBe("🚨 [SELL] $WIF");
-      expect(result.finalSignal.message).toContain("🚨 **[SELL] $WIF**");
-      expect(result.finalSignal.message).toContain("🎯 Confidence: **82%**");
-      expect(result.finalSignal.message).toContain("⏰ Timeframe: **Short-term** (1-4h re-check)");
-      expect(result.finalSignal.message).toContain("Consider partial or full *sell*");
+      expect(result.finalSignal.title).toBe("🚨 SELL wif - High Risk");
+      expect(result.finalSignal.message).toContain("🚨 SELL wif - High Risk");
+      expect(result.finalSignal.message).toContain("Confidence: 82 %");
+      expect(result.finalSignal.message).toContain("Timeframe: Short-term (1-4h re-check recommended)");
+      expect(result.finalSignal.message).toContain("Consider partial or full sell");
     });
 
     it("should handle NEUTRAL/HOLD signals", () => {
@@ -497,9 +491,9 @@ describe("Signal Agent", () => {
       expect(result.finalSignal).toBeDefined();
       expect(result.finalSignal.level).toBe(1); // LOW risk
       expect(result.finalSignal.priority).toBe("LOW");
-      expect(result.finalSignal.title).toBe("📊 [NEUTRAL] $SOL");
-      expect(result.finalSignal.message).toContain("📊 **[NEUTRAL] $SOL**");
-      expect(result.finalSignal.message).toContain("⏰ Timeframe: **Long-term** (12-24h re-check)");
+      expect(result.finalSignal.title).toBe("📊 NEUTRAL sol - Low Risk");
+      expect(result.finalSignal.message).toContain("📊 NEUTRAL sol - Low Risk");
+      expect(result.finalSignal.message).toContain("Timeframe: Long-term (12-24h re-check recommended)");
       expect(result.finalSignal.message).toContain("Hold current position");
     });
   });

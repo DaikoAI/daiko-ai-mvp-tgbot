@@ -1,13 +1,13 @@
-import { describe, it, expect } from "vitest";
-import { calculateTechnicalIndicators, calculateVWAP, calculateOBV } from "../../../src/lib/ta";
+import { describe, it, expect } from "bun:test";
 import type { OHLCVData } from "../../../src/lib/ta";
+import { calculateOBV, calculateTechnicalIndicators, calculateVWAP } from "../../../src/lib/ta";
 
 describe("Technical Analysis - 6 Indicators System", () => {
   // 50個以上のSOLミームトークン風のモックデータ（1分足）を生成
   const generateMockOHLCVData = (count: number = 55): OHLCVData[] => {
     const data: OHLCVData[] = [];
     let basePrice = 100;
-    let timestamp = 1703000000;
+    const timestamp = 1703000000;
 
     for (let i = 0; i < count; i++) {
       // 若干のランダム性を持たせつつ、全体的に上昇トレンドを作る
