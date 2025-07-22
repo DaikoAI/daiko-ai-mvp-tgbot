@@ -95,6 +95,8 @@ Analyze the data and determine if a trading signal should be generated. Use begi
 3. Risk-reward potential across timeframes
 4. Market volatility impact on safety
 
+CRITICAL: Use only half-width dashes (-) and standard punctuation. Never use em-dashes (—) or en-dashes (–).
+
 {formatInstructions}
 
 Provide structured analysis with clear, accessible reasoning.`,
@@ -154,8 +156,9 @@ export const signalFormattingPrompt = new PromptTemplate({
   ],
   template: `You are a crypto signal formatter creating concise, scannable Telegram messages.
 
-# IMPORTANT
-Write the entire output in **{language}**. Use half-width dashes (-) throughout.
+# CRITICAL FORMATTING
+Write the entire output in **{language}**. ALWAYS use half-width dashes (-) and punctuation marks.
+NEVER use full-width dashes (—, –) or em-dashes. Replace any full-width punctuation with half-width equivalents.
 
 # Input Analysis
 **Token**: {tokenSymbol} ({tokenAddress})
@@ -167,24 +170,25 @@ Write the entire output in **{language}**. Use half-width dashes (-) throughout.
 **Technical**: {technicalData}
 
 # Required Format (EXACT):
-Line 1: [EMOJI] [ACTION] [tokenname] - [Risk Level] Risk
-Line 2: Price: $[PRICE] Confidence: [X] %
-Line 3: Timeframe: [TIMEFRAME] ([recheck] recommended)
-Line 4: (empty)
-Line 5: 🗒️ Market Snapshot
-Line 6: [Brief market explanation]
-Line 7: (empty)
-Line 8: 🔍 Why?
-Line 9-11: • [Technical indicator] - [simple description]
-Line 12: (empty)
-Line 13: 🎯 Suggested Action
-Line 14: [Action recommendation]
-Line 15: (empty)
-Line 16: ⚠️ DYOR - Always do your own research.
+Line 1: [EMOJI] [ACTION] $[TOKENNAME]
+Line 2: Risk: [Risk Level] Risk
+Line 3: Price: $[PRICE] Confidence: [X] %
+Line 4: Timeframe: [TIMEFRAME] ([recheck] recommended)
+Line 5: (empty)
+Line 6: **🗒️ Market Snapshot**
+Line 7: [Brief market explanation]
+Line 8: (empty)
+Line 9: **🔍 Why?**
+Line 10-12: ● [Technical indicator] - [simple description]
+Line 13: (empty)
+Line 14: **🎯 Suggested Action**
+Line 15: [Action recommendation]
+Line 16: (empty)
+Line 17: ⚠️ DYOR - Always do your own research.
 
 # Format Rules
 **Emojis**: BUY → 🚀, SELL → 🚨, NEUTRAL → 📊
-**Token**: lowercase (e.g., titcoin not TITCOIN)
+**Token**: uppercase with $ prefix (e.g., $TITCOIN not titcoin)
 **Price**: Full precision as provided (e.g., $0.012491810862262155)
 **Confidence**: Plain integer without % in confidence field, but add % after
 **Risk**: Title case (Low/Medium/High) + " Risk"
@@ -195,12 +199,12 @@ Line 16: ⚠️ DYOR - Always do your own research.
 
 # Technical Indicators Format
 Extract 3 key indicators from technicalData and format as:
-• [IndicatorName] [Value] - [simple condition]
+● [IndicatorName] [Value] - [simple condition]
 
 Examples:
-• RSI 76 - overbought
-• Bollinger +2σ breakout - price above upper band
-• ADX 13 - weak trend
+● RSI 76 - overbought
+● Bollinger +2σ breakout - price above upper band
+● ADX 13 - weak trend
 
 # Output
 Return JSON with: level (1|2|3), title, message, priority (LOW|MEDIUM|HIGH), tags (array)

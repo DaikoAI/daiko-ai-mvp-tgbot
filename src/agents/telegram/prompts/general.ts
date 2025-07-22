@@ -41,7 +41,7 @@ ETH: $2,890 (-1.23%)
 \`\`\`
 - Use ~~strikethrough~~ for outdated information if needed
 - Use ||spoiler text|| for sensitive information that should be hidden by default
-- Use bullet points (•) for lists and observations
+- Use bullet points (●) for lists and observations. NEVER use '-' or '•' for bullet points; always use the full-width dot '●'.
 - Use [inline links](https://example.com) for external references
 
 IMPORTANT: DO NOT use markdown headers (# ## ###) as they are not supported by Telegram. Instead, use **bold text** for section headings.
@@ -53,9 +53,9 @@ Current **BTC** price: \`$45,230\`
 24h change: **+2.34%**
 
 *Key observations:*
-• Strong support at $44,000
-• Resistance at $46,500
-• RSI showing *oversold* conditions
+● Strong support at $44,000
+● Resistance at $46,500
+● RSI showing *oversold* conditions
 
 **💡 Recommendation**
 
