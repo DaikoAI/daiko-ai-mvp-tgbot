@@ -1,6 +1,9 @@
 # openai setting
 OPENAI_API_KEY="sk-XXXXXXX"
 
+# groq setting
+GROQ_API_KEY="XXXXXXX"
+
 # solana setting
 HELIUS_API_KEY="XXXXXXX"
 

@@ -1,11 +1,11 @@
 import { RunnableSequence } from "@langchain/core/runnables";
 import { logger } from "../../../utils/logger";
-import { gpt4o } from "../../model";
+import { kimiK2 } from "../../model";
 import type { SignalGraphState } from "../graph-state";
 import { parser, signalAnalysisPrompt } from "../prompts/signal-analysis";
 
 // Create runnable sequence with prompt, LLM, and parser
-const chain = RunnableSequence.from([signalAnalysisPrompt, gpt4o, parser]);
+const chain = RunnableSequence.from([signalAnalysisPrompt, kimiK2, parser]);
 
 /**
  * LLM Analysis Node (Original Implementation)
