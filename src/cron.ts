@@ -25,6 +25,7 @@ import {
   syncAllUserTokenHoldings,
 } from "./utils/db";
 import { logger } from "./utils/logger";
+import { safeParseNumber } from "./utils/number";
 
 // every 5 minutes
 export const runCronTasks = async () => {
@@ -88,6 +89,37 @@ const updateTokenOHLCVTask = async () => {
     updateFields: ["open", "high", "low", "close", "volume"],
   });
 };
+
+/**
+ * Safely converts technical analysis string values to numbers, filtering out invalid data
+ */
+function validateTechnicalAnalysis(analysis: any) {
+  const indicators = {
+    atrPercent: safeParseNumber(analysis.atr_percent),
+    adx: safeParseNumber(analysis.adx),
+    rsi: safeParseNumber(analysis.rsi),
+    vwapDeviation: safeParseNumber(analysis.vwap_deviation),
+    percentB: safeParseNumber(analysis.percent_b),
+    obvZScore: safeParseNumber(analysis.obv_zscore),
+  };
+
+  // Count valid indicators
+  const validCount = Object.values(indicators).filter(value => value !== null).length;
+
+  // Require minimum 3 valid indicators for reliable analysis
+  if (validCount < 3) {
+    logger.warn("Insufficient valid technical indicators", {
+      tokenAddress: analysis.token,
+      validCount,
+      indicators: Object.entries(indicators)
+        .filter(([_, value]) => value !== null)
+        .map(([key]) => key),
+    });
+    return null;
+  }
+
+  return indicators;
+}
 
 const technicalAnalysisTask = async () => {
   logger.info("Starting 6-indicator practical analysis task");
@@ -311,16 +343,24 @@ const generateSignalTask = async () => {
     // 各トークンに対してシグナル生成を並列実行
     const signalPromises = unprocessedAnalyses.map(async (analysis) => {
       try {
-        // Convert technical analysis to required format
+        // Validate technical analysis data and filter out NaN values
+        const validatedIndicators = validateTechnicalAnalysis(analysis);
+        if (!validatedIndicators) {
+          // Mark as processed and skip due to insufficient valid indicators
+          await markTechnicalAnalysisAsProcessed(analysis.id);
+          return null;
+        }
+
+        // Convert to required format with validated values
         const technicalAnalysisResult = {
-          atrPercent: parseFloat(analysis.atr_percent || "2"),
-          adx: parseFloat(analysis.adx || "20"),
-          rsi: parseFloat(analysis.rsi || "50"),
+          atrPercent: validatedIndicators.atrPercent ?? 2,
+          adx: validatedIndicators.adx ?? 20,
+          rsi: validatedIndicators.rsi ?? 50,
           vwap: parseFloat(analysis.vwap || "0"),
-          vwapDeviation: parseFloat(analysis.vwap_deviation || "0"),
+          vwapDeviation: validatedIndicators.vwapDeviation ?? 0,
           obv: parseFloat(analysis.obv || "0"),
-          obvZScore: parseFloat(analysis.obv_zscore || "0"),
-          percentB: parseFloat(analysis.percent_b || "0.5"),
+          obvZScore: validatedIndicators.obvZScore ?? 0,
+          percentB: validatedIndicators.percentB ?? 0.5,
           bbWidth: parseFloat(analysis.bb_width || "0"),
           atr: parseFloat(analysis.atr || "0"),
           adxDirection: (analysis.adx_direction as "UP" | "DOWN" | "NEUTRAL") || "NEUTRAL",
