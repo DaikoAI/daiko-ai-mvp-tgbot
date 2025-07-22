@@ -1,8 +1,8 @@
 import { TavilySearchResults } from "@langchain/community/tools/tavily_search";
 import type { Tool } from "@langchain/core/tools";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import { gpt4o } from "../../model";
-import { memory, type graphState } from "../graph-state";
+import { kimiK2 } from "../../model";
+import { type graphState, memory } from "../graph-state";
 import { generalPrompt } from "../prompts/general";
 
 // Initialize tools array
@@ -17,7 +17,7 @@ export const generalistNode = async (state: typeof graphState.State): Promise<Pa
   const { messages } = state;
 
   const agent = createReactAgent({
-    llm: gpt4o,
+    llm: kimiK2,
     tools,
     prompt: generalPrompt,
     checkpointSaver: memory,
