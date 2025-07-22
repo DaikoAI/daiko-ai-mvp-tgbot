@@ -280,7 +280,7 @@ describe("Signal Agent", () => {
         expect(signal.finalSignal.message).toContain("Why?");
         expect(signal.finalSignal.message).toContain("Suggested Action");
         expect(signal.finalSignal.title).toContain("BUY");
-        expect(signal.finalSignal.title).toContain("sol");
+        expect(signal.finalSignal.title).toContain("$SOL");
         expect(signal.finalSignal.message).not.toContain("–"); // No full-width dashes
       }
     });
@@ -345,7 +345,7 @@ describe("Signal Agent", () => {
 
         // Verify title format matches new structure (simplified)
         expect(signal.finalSignal.title).toContain("BUY");
-        expect(signal.finalSignal.title).toContain("sol");
+        expect(signal.finalSignal.title).toContain("$SOL");
 
         // Verify message contains proper sections with half-width dashes
         expect(signal.finalSignal.message).not.toContain("–"); // No full-width dashes
@@ -421,8 +421,8 @@ describe("Signal Agent", () => {
       expect(result.finalSignal.priority).toBe("MEDIUM");
 
       // Test new format structure
-      expect(result.finalSignal.title).toBe("🚀 BUY sol - Medium Risk");
-      expect(result.finalSignal.message).toContain("🚀 BUY sol - Medium Risk");
+      expect(result.finalSignal.title).toBe("🚀 BUY $SOL - Medium Risk");
+      expect(result.finalSignal.message).toContain("🚀 BUY $SOL - Medium Risk");
       expect(result.finalSignal.message).toContain("Price: $125.5");
       expect(result.finalSignal.message).toContain("Confidence: 75 %");
       expect(result.finalSignal.message).toContain("Timeframe: Mid-term (4-12h re-check recommended)");
@@ -459,8 +459,8 @@ describe("Signal Agent", () => {
       expect(result.finalSignal).toBeDefined();
       expect(result.finalSignal.level).toBe(3); // HIGH risk
       expect(result.finalSignal.priority).toBe("HIGH");
-      expect(result.finalSignal.title).toBe("🚨 SELL wif - High Risk");
-      expect(result.finalSignal.message).toContain("🚨 SELL wif - High Risk");
+      expect(result.finalSignal.title).toBe("🚨 SELL $WIF - High Risk");
+      expect(result.finalSignal.message).toContain("🚨 SELL $WIF - High Risk");
       expect(result.finalSignal.message).toContain("Confidence: 82 %");
       expect(result.finalSignal.message).toContain("Timeframe: Short-term (1-4h re-check recommended)");
       expect(result.finalSignal.message).toContain("Consider partial or full sell");
@@ -491,8 +491,8 @@ describe("Signal Agent", () => {
       expect(result.finalSignal).toBeDefined();
       expect(result.finalSignal.level).toBe(1); // LOW risk
       expect(result.finalSignal.priority).toBe("LOW");
-      expect(result.finalSignal.title).toBe("📊 NEUTRAL sol - Low Risk");
-      expect(result.finalSignal.message).toContain("📊 NEUTRAL sol - Low Risk");
+      expect(result.finalSignal.title).toBe("📊 NEUTRAL $SOL - Low Risk");
+      expect(result.finalSignal.message).toContain("📊 NEUTRAL $SOL - Low Risk");
       expect(result.finalSignal.message).toContain("Timeframe: Long-term (12-24h re-check recommended)");
       expect(result.finalSignal.message).toContain("Hold current position");
     });
