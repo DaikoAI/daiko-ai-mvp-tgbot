@@ -4,7 +4,7 @@ import { initTelegramGraph } from "../../agents/telegram/graph";
 import type { NewToken } from "../../db";
 import type { StreamChunk } from "../../types";
 import { SetupStep } from "../../types";
-import { createTimeoutPromise, dumpTokenUsage, isGeneralistMessage } from "../../utils";
+import { createTimeoutPromise, isGeneralistMessage, logUsageMetadata } from "../../utils";
 import {
   createTokens,
   getChatHistory,
@@ -194,7 +194,7 @@ export const setupHandler = (bot: Bot) => {
             }
           }
 
-          dumpTokenUsage(chunk);
+          logUsageMetadata(chunk);
         }
 
         // Process the final response
