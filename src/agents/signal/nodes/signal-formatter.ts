@@ -31,9 +31,9 @@ const signalFormattingSchema = z.object({
  * Configuration for signal direction display
  */
 const SIGNAL_CONFIG = {
-  BUY: { emoji: "🚀", label: "Short-term", timeNote: "1-4h re-check" },
-  SELL: { emoji: "🚨", label: "Mid-term", timeNote: "4-12h re-check" },
-  NEUTRAL: { emoji: "📊", label: "Long-term", timeNote: "12-24h re-check" },
+  BUY: { emoji: "🚀" },
+  SELL: { emoji: "🚨" },
+  NEUTRAL: { emoji: "📊" },
 } as const;
 
 /**
