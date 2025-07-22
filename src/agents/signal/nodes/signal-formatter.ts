@@ -52,11 +52,11 @@ export const createSimpleSignalResponse = (state: SignalGraphState) => {
     indicatorBullets.length > 0
       ? indicatorBullets
           .slice(0, 3)
-          .map((bullet) => `• ${bullet}`)
+          .map((bullet) => `● ${bullet}`)
           .join("\n")
       : signalDecision.keyFactors
           .slice(0, 3)
-          .map((factor) => `• ${factor}`)
+          .map((factor) => `● ${factor}`)
           .join("\n");
 
   // Generate suggested action based on direction
@@ -68,17 +68,19 @@ export const createSimpleSignalResponse = (state: SignalGraphState) => {
   const suggestedAction = actionMap[signalDecision.direction as keyof typeof actionMap];
 
   // Build final message in the exact format from the example
-  const message = `${config.emoji} ${signalDecision.direction} ${tokenSymbol.toLowerCase()} - ${riskLabel} Risk
-Price: $${formatPrice(currentPrice)} Confidence: ${Math.round(signalDecision.confidence * 100)} %
+  const message = `${config.emoji} ${signalDecision.direction} $${tokenSymbol.toUpperCase()}
+Risk: ${riskLabel}
+Price: $${formatPrice(currentPrice)}
+Confidence: ${Math.round(signalDecision.confidence * 100)} %
 Timeframe: ${timeframe.label} (${timeframe.note} recommended)
 
-🗒️ Market Snapshot
+**🗒️ Market Snapshot**
 ${signalDecision.reasoning}
 
-🔍 Why?
+**🔍 Why?**
 ${whySection}
 
-🎯 Suggested Action
+**🎯 Suggested Action**
 ${suggestedAction}
 
 ⚠️ DYOR - Always do your own research.`;
@@ -94,7 +96,7 @@ ${suggestedAction}
   return {
     finalSignal: {
       level: level as 1 | 2 | 3,
-      title: `${config.emoji} ${signalDecision.direction} ${tokenSymbol.toLowerCase()} - ${riskLabel} Risk`,
+      title: `${config.emoji} ${signalDecision.direction} $${tokenSymbol.toUpperCase()} - ${riskLabel} Risk`,
       message,
       priority: signalDecision.riskLevel as "LOW" | "MEDIUM" | "HIGH",
       tags: [tokenSymbol.toLowerCase(), signalDecision.direction.toLowerCase(), signalDecision.riskLevel.toLowerCase()],
