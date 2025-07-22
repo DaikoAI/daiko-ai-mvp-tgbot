@@ -110,7 +110,7 @@ const calculateOBVZScore = (obvHistory: number[]): number | undefined => {
   try {
     const recentValues = obvHistory.slice(-OBV_ZSCORE_CONFIG.period);
     const mean = recentValues.reduce((sum, val) => sum + val, 0) / recentValues.length;
-    const variance = recentValues.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / recentValues.length;
+    const variance = recentValues.reduce((sum, val) => sum + (val - mean) ** 2, 0) / recentValues.length;
     const stdDev = Math.sqrt(variance);
 
     if (stdDev === 0) return 0;

@@ -57,7 +57,7 @@ export const convertToString = (value: number | undefined): string | null => {
 
 // Escape function for MarkdownV2
 export const escapeMarkdownV2 = (text: string): string => {
-  return text.replace(/[_*\[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
+  return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
 };
 
 // Escape function for HTML

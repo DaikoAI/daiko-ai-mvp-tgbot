@@ -1,34 +1,33 @@
-import { AIMessage, HumanMessage, type BaseMessage } from "@langchain/core/messages";
+import { AIMessage, type BaseMessage, HumanMessage } from "@langchain/core/messages";
 import { and, desc, eq, getTableColumns, getTableName, inArray, notInArray, sql } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
-import { Result, err, ok } from "neverthrow";
+import { Interface } from "helius-sdk";
+import { err, ok, type Result } from "neverthrow";
 import { BATCH_PROCESSING, QUERY_LIMITS } from "../constants/database";
 import {
-  NewSignal,
-  NewToken,
-  Signal,
-  Token,
-  User,
   chatMessages,
   getDB,
+  type NewChatMessage,
+  type NewSignal,
+  type NewTechnicalAnalysis,
+  type NewToken,
+  type NewUser,
+  type Signal,
   schema,
   signal,
+  type TechnicalAnalysis,
+  type Token,
+  type TokenOHLCV,
   technicalAnalysis,
   tokenOHLCV,
   tokens,
-  userTokenHoldings,
-  users,
-  type NewChatMessage,
-  type NewTechnicalAnalysis,
-  type NewUser,
-  type TechnicalAnalysis,
-  type TokenOHLCV,
+  type User,
   type UserTokenHolding,
+  users,
+  userTokenHoldings,
 } from "../db";
-import { logger } from "./logger";
-
-import { Interface } from "helius-sdk";
 import { getAssetsByOwner } from "../lib/helius";
+import { logger } from "./logger";
 
 export const getTokens = async (): Promise<Token[]> => {
   const db = getDB();
@@ -691,11 +690,6 @@ export const getLatestTokenPrice = async (tokenAddress: string): Promise<number 
 type ExtractTableColumns<T extends PgTable> = keyof T["_"]["columns"] & string;
 
 /**
- * スキーマから全テーブルを抽出する型
- */
-type SchemaTableType = (typeof schema)[keyof typeof schema];
-
-/**
  * バッチUpsertのオプション型
  */
 type BatchUpsertOptions<TTable extends PgTable> = {
@@ -769,7 +763,7 @@ function extractTablesFromSchema(schema: Record<string, any>): Record<string, Pg
 /**
  * フィールド名の検証を行う
  */
-function validateFields<TTable extends PgTable>(
+function validateFields<_TTable extends PgTable>(
   fields: ReadonlyArray<string>,
   tableColumns: Record<string, any>,
   fieldType: "conflictTarget" | "updateFields",
@@ -801,7 +795,7 @@ function getDbColumnName(fieldName: string, tableColumns: Record<string, any>): 
 /**
  * テーブル情報を準備する
  */
-function prepareTableInfo<TTable extends PgTable, TData extends Record<string, any>>(
+function prepareTableInfo<TTable extends PgTable, _TData extends Record<string, any>>(
   table: TTable,
   options: BatchUpsertOptions<TTable>,
 ): Result<TableInfo<TTable>, BatchUpsertError> {
@@ -990,7 +984,12 @@ export async function batchUpsert<TTable extends PgTable, TData extends Record<s
   // 早期リターン：空データの場合
   if (!data || data.length === 0) {
     logger.warn("No data provided for batch upsert");
-    return { totalUpserted: 0, batchCount: 0, failedBatches: 0, hasErrors: false };
+    return {
+      totalUpserted: 0,
+      batchCount: 0,
+      failedBatches: 0,
+      hasErrors: false,
+    };
   }
 
   // 設定値の取得
@@ -1033,7 +1032,9 @@ export async function batchUpsert<TTable extends PgTable, TData extends Record<s
     return aggregateResults(allResults, batches.length, tableInfo.name);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`Batch upsert failed for table '${tableInfo.name}':`, { error: errorMessage });
+    logger.error(`Batch upsert failed for table '${tableInfo.name}':`, {
+      error: errorMessage,
+    });
     throw new Error(errorMessage);
   }
 }
@@ -1136,7 +1137,9 @@ async function syncUserHoldings(user: User): Promise<Result<string, string>> {
     return ok(user.userId);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to sync holdings for user ${user.userId}`, { error: errorMessage });
+    logger.error(`Failed to sync holdings for user ${user.userId}`, {
+      error: errorMessage,
+    });
     return err(errorMessage);
   }
 }
@@ -1170,11 +1173,12 @@ async function processBatchUserSync(
  * @returns 同期結果の統計情報
  */
 export const syncAllUserTokenHoldings = async (
-  options: {
-    batchSize?: number;
-    delayMs?: number;
-  } = {},
-): Promise<{ totalUsers: number; successCount: number; failureCount: number }> => {
+  options: { batchSize?: number; delayMs?: number } = {},
+): Promise<{
+  totalUsers: number;
+  successCount: number;
+  failureCount: number;
+}> => {
   const { batchSize = 10, delayMs = 1000 } = options;
 
   const allUsers = await getUsers();

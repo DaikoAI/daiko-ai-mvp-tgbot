@@ -47,7 +47,7 @@ Consider gradual *buy* entry, re-evaluate price after 4-12 h re-check recommende
   try {
     console.log("Testing signal creation with new format:", {
       ...testSignalData,
-      body: testSignalData.body.substring(0, 100) + "...", // Truncate for readability
+      body: `${testSignalData.body.substring(0, 100)}...`, // Truncate for readability
     });
 
     const result = await createSignal(testSignalData);

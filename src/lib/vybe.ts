@@ -1,6 +1,6 @@
 // NOTE: @see https://docs.vybenetwork.com/reference/get_token_trade_ohlc
 
-import { ok, err, Result } from "neverthrow";
+import { err, ok, type Result } from "neverthrow";
 import { logger } from "../utils/logger";
 import { isValidSolanaAddress } from "../utils/solana";
 
@@ -35,7 +35,11 @@ export type VybeAPIError = {
 
 // Vybe Network API の公式エンドポイント
 const BASE_URL = process.env.VYBE_API_URL || "https://api.vybenetwork.xyz";
-const API_KEY = process.env.VYBE_API_KEY!;
+const apiKey = process.env.VYBE_API_KEY;
+if (!apiKey) {
+  throw new Error("VYBE_API_KEY environment variable is required");
+}
+const API_KEY = apiKey;
 
 const authFetch = (url: string) => {
   return fetch(url, {
@@ -121,7 +125,11 @@ export const fetchTokenOHLCV = async (
 
     const url = `${BASE_URL}/price/${mintAddress}/token-ohlcv${params.toString() ? `?${params}` : ""}`;
 
-    logger.info(`Fetching OHLCV data for ${mintAddress}`, { url, resolution, options });
+    logger.info(`Fetching OHLCV data for ${mintAddress}`, {
+      url,
+      resolution,
+      options,
+    });
 
     const response = await authFetch(url);
 

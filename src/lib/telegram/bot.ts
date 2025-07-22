@@ -44,7 +44,10 @@ export const getBotInstance = (): Bot => {
   if (!botInstance) {
     setupTelegramBot();
   }
-  return botInstance!;
+  if (!botInstance) {
+    throw new Error("Failed to initialize bot instance");
+  }
+  return botInstance;
 };
 
 /**

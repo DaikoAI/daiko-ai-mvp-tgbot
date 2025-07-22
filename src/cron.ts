@@ -104,7 +104,7 @@ function validateTechnicalAnalysis(analysis: any) {
   };
 
   // Count valid indicators
-  const validCount = Object.values(indicators).filter(value => value !== null).length;
+  const validCount = Object.values(indicators).filter((value) => value !== null).length;
 
   // Require minimum 3 valid indicators for reliable analysis
   if (validCount < 3) {
@@ -179,10 +179,10 @@ const technicalAnalysisTask = async () => {
       token: token.symbol,
       price: currentPrice.toFixed(6),
       vwap: analysis.vwap?.toFixed(6),
-      vwapDeviation: analysis.vwapDeviation?.toFixed(2) + "%",
-      obvZScore: analysis.obvZScore?.toFixed(1) + "σ",
+      vwapDeviation: `${analysis.vwapDeviation?.toFixed(2)}%`,
+      obvZScore: `${analysis.obvZScore?.toFixed(1)}σ`,
       percentB: analysis.percentB?.toFixed(2),
-      atrPercent: analysis.atrPercent?.toFixed(1) + "%",
+      atrPercent: `${analysis.atrPercent?.toFixed(1)}%`,
       adx: analysis.adx?.toFixed(0),
       adxDirection: analysis.adxDirection,
       rsi: analysis.rsi?.toFixed(0),
@@ -396,7 +396,10 @@ const generateSignalTask = async () => {
     logger.info("Signal generation task completed", {
       totalAnalyzed: unprocessedAnalyses.length,
       signalsGenerated: generatedSignals.length,
-      signals: generatedSignals.map((s) => ({ id: s?.signalId, token: s?.token })),
+      signals: generatedSignals.map((s) => ({
+        id: s?.signalId,
+        token: s?.token,
+      })),
     });
   } catch (error) {
     logger.error("Signal generation task failed", {
@@ -454,7 +457,12 @@ const sendSignalToTelegram = async () => {
             signalId: signalData.id,
             tokenAddress: signalData.token,
           });
-          return { signalId: signalData.id, success: false, systemError: true, stats: null };
+          return {
+            signalId: signalData.id,
+            success: false,
+            systemError: true,
+            stats: null,
+          };
         }
 
         const stats = result.value;
@@ -469,7 +477,12 @@ const sendSignalToTelegram = async () => {
             failedUserIds: stats.failedUsers,
             firstError: stats.results.find((r) => !r.success)?.error,
           });
-          return { signalId: signalData.id, success: false, systemError: false, stats };
+          return {
+            signalId: signalData.id,
+            success: false,
+            systemError: false,
+            stats,
+          };
         }
 
         // Log success with detailed stats
@@ -479,7 +492,7 @@ const sendSignalToTelegram = async () => {
           totalUsers: stats.totalUsers,
           successCount: stats.successCount,
           failureCount: stats.failureCount,
-          successRate: stats.totalUsers > 0 ? ((stats.successCount / stats.totalUsers) * 100).toFixed(1) + "%" : "0%",
+          successRate: stats.totalUsers > 0 ? `${((stats.successCount / stats.totalUsers) * 100).toFixed(1)}%` : "0%",
         });
 
         // Log partial failures if they exist
@@ -494,13 +507,23 @@ const sendSignalToTelegram = async () => {
           });
         }
 
-        return { signalId: signalData.id, success: true, systemError: false, stats };
+        return {
+          signalId: signalData.id,
+          success: true,
+          systemError: false,
+          stats,
+        };
       } catch (error) {
         logger.error(`Error processing signal ${signalData.id}:`, {
           error: error instanceof Error ? error.message : String(error),
           signalId: signalData.id,
         });
-        return { signalId: signalData.id, success: false, systemError: true, stats: null };
+        return {
+          signalId: signalData.id,
+          success: false,
+          systemError: true,
+          stats: null,
+        };
       }
     });
 
@@ -529,7 +552,7 @@ const sendSignalToTelegram = async () => {
       failedSignals,
       systemErrors,
       successRate:
-        totalSignals > 0 ? ((successfulSignals / (totalSignals - skippedSignals)) * 100).toFixed(1) + "%" : "0%",
+        totalSignals > 0 ? `${((successfulSignals / (totalSignals - skippedSignals)) * 100).toFixed(1)}%` : "0%",
     });
 
     // エラーがある場合は警告を出力
@@ -580,7 +603,7 @@ const syncUserTokenHoldingsTask = async () => {
       totalUsers: result.totalUsers,
       successCount: result.successCount,
       failureCount: result.failureCount,
-      successRate: result.totalUsers > 0 ? ((result.successCount / result.totalUsers) * 100).toFixed(1) + "%" : "0%",
+      successRate: result.totalUsers > 0 ? `${((result.successCount / result.totalUsers) * 100).toFixed(1)}%` : "0%",
     });
   } catch (error) {
     logger.error("Failed to sync user token holdings", {

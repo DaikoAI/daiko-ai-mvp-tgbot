@@ -69,6 +69,6 @@ export const llmAnalysisRouter = (state: SignalGraphState): "format_signal" | ty
  * Format Signal後のルーティング
  * フォーマット完了後は常に終了
  */
-export const formatSignalRouter = (state: SignalGraphState): typeof END => {
+export const formatSignalRouter = (_state: SignalGraphState): typeof END => {
   return END;
 };

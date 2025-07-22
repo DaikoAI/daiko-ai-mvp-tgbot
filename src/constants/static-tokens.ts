@@ -1,4 +1,4 @@
-import { Token } from "../db";
+import type { Token } from "../db";
 
 export const initialTokens: Token[] = [
   {

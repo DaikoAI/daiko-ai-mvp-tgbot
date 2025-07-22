@@ -55,11 +55,11 @@ export const formatSignalMessage = (
       buttons?: Array<{ text: string; url?: string; callback_data?: string }>;
     };
   },
-  tokenSymbol: string,
+  _tokenSymbol: string,
   currentPrice?: number,
 ): string => {
   // If the signal already contains the new formatted message in body, use it directly
-  if (signal.body && signal.body.includes("Market Snapshot")) {
+  if (signal.body?.includes("Market Snapshot")) {
     // Add timestamp and powered by footer to the new format
     const timestamp = new Date(signal.timestamp).toLocaleString("en-US", {
       timeZone: "UTC",

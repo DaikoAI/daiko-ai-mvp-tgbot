@@ -1,4 +1,5 @@
 import { START, StateGraph } from "@langchain/langgraph";
+import type { TechnicalAnalysis } from "../../db/schema/technical-analysis";
 import { logger } from "../../utils/logger";
 import { formatSignalRouter, llmAnalysisRouter, staticFilterRouter } from "./graph-route";
 import { signalGraphState } from "./graph-state";
@@ -40,7 +41,7 @@ export const generateSignal = async (input: {
   tokenAddress: string;
   tokenSymbol: string;
   currentPrice: number;
-  technicalAnalysis: any;
+  technicalAnalysis: TechnicalAnalysis;
 }) => {
   logger.info("Starting signal generation", {
     tokenAddress: input.tokenAddress,

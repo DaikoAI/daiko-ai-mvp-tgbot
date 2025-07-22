@@ -31,7 +31,7 @@ const sendToSingleUser = async (
     const bot = getBotInstance();
 
     // Create inline keyboard if buttons are provided
-    let reply_markup;
+    let reply_markup: InlineKeyboard | undefined;
     if (options?.buttons && options.buttons.length > 0) {
       const keyboard = new InlineKeyboard();
 
@@ -44,7 +44,7 @@ const sendToSingleUser = async (
         }
 
         // Start new row after every 2 buttons
-        if (index % 2 === 1 && index < options.buttons!.length - 1) {
+        if (index % 2 === 1 && index < options.buttons?.length - 1) {
           keyboard.row();
         }
       });
@@ -60,7 +60,7 @@ const sendToSingleUser = async (
 
     logger.info(`Message sent to user ${userId}`, {
       messageId: result.message_id,
-      message: message.substring(0, 50) + "...",
+      message: `${message.substring(0, 50)}...`,
       buttonsCount: options?.buttons?.length || 0,
     });
 
@@ -233,7 +233,7 @@ export const sendMessage = async (
       totalUsers: result.totalUsers,
       successCount: result.successCount,
       failureCount: result.failureCount,
-      successRate: result.totalUsers > 0 ? ((result.successCount / result.totalUsers) * 100).toFixed(1) + "%" : "0%",
+      successRate: result.totalUsers > 0 ? `${((result.successCount / result.totalUsers) * 100).toFixed(1)}%` : "0%",
     });
 
     return ok(result);

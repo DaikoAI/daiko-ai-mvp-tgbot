@@ -1,31 +1,7 @@
-import { z } from "zod";
 import { createPhantomButtons } from "../../../lib/phantom";
 import { logger } from "../../../utils/logger";
 import { safeParseNumber } from "../../../utils/number";
-import { gpt4oMini } from "../../model";
 import type { SignalGraphState } from "../graph-state";
-import { signalFormattingPrompt } from "../prompts/signal-analysis";
-
-/**
- * Schema for button configuration in signals
- */
-const buttonSchema = z.object({
-  text: z.string(),
-  url: z.string().optional().nullable(),
-  callback_data: z.string().optional().nullable(),
-});
-
-/**
- * Schema for structured signal output validation
- */
-const signalFormattingSchema = z.object({
-  level: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-  title: z.string(),
-  message: z.string(),
-  priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
-  tags: z.array(z.string()),
-  buttons: z.array(buttonSchema).optional().nullable(),
-});
 
 /**
  * Configuration for signal direction display
@@ -46,19 +22,23 @@ const TIMEFRAME_CONFIG = {
 } as const;
 
 /**
- * Formats price with appropriate decimal places for readability
+ * Formats price with full precision for accurate display
  */
 const formatPrice = (price: number): string => {
-  if (price >= 1) return price.toFixed(2);
-  if (price >= 0.01) return price.toFixed(4);
-  return price.toFixed(8).replace(/\.?0+$/, "");
+  // Return full precision as string to match exact format from example
+  return price.toString();
 };
 
 /**
  * Technical indicator analyzer with beginner-friendly explanations
  */
 class TechnicalIndicatorAnalyzer {
-  private indicators: Array<{ name: string; value: number; condition: string; priority: number }> = [];
+  private indicators: Array<{
+    name: string;
+    value: number;
+    condition: string;
+    priority: number;
+  }> = [];
 
   constructor(private ta: SignalGraphState["technicalAnalysis"]) {
     if (ta) {
@@ -267,13 +247,13 @@ class TechnicalIndicatorAnalyzer {
   }
 
   /**
-   * Returns the top 3 most relevant indicators formatted as bullets
+   * Returns the top 3 most relevant indicators formatted as simple bullets
    */
   getBulletPoints(): string[] {
     return this.indicators
       .sort((a, b) => b.priority - a.priority || b.value - a.value)
       .slice(0, 3)
-      .map(indicator => `• ${indicator.name} - ${indicator.condition}`);
+      .map((indicator) => `${indicator.name} - ${indicator.condition}`);
   }
 }
 
@@ -295,47 +275,54 @@ export const createSimpleSignalResponse = (state: SignalGraphState) => {
   const analyzer = new TechnicalIndicatorAnalyzer(state.technicalAnalysis);
   const indicatorBullets = analyzer.getBulletPoints();
 
-  // Build why section
-  const whySection = indicatorBullets.length > 0
-    ? indicatorBullets.join("\n")
-    : signalDecision.keyFactors.slice(0, 3).map(factor => `• ${factor}`).join("\n");
+  // Build why section - format as simple bullet points
+  const whySection =
+    indicatorBullets.length > 0
+      ? indicatorBullets
+          .slice(0, 3)
+          .map((bullet) => `• ${bullet}`)
+          .join("\n")
+      : signalDecision.keyFactors
+          .slice(0, 3)
+          .map((factor) => `• ${factor}`)
+          .join("\n");
 
-  // Generate suggested action
+  // Generate suggested action based on direction
   const actionMap = {
-    BUY: `Consider gradual *buy* entry, re-evaluate price after ${timeframe.note}`,
-    SELL: `Consider partial or full *sell*. Re-check chart after ${timeframe.note}`,
+    BUY: `Consider gradual buy entry. Re-check chart after ${timeframe.note}`,
+    SELL: `Consider partial or full sell. Re-check chart after ${timeframe.note}`,
     NEUTRAL: `Hold current position. Re-check market after ${timeframe.note}`,
   };
   const suggestedAction = actionMap[signalDecision.direction as keyof typeof actionMap];
 
-  // Build final message
-  const message = `${config.emoji} **[${signalDecision.direction}] $${tokenSymbol.toUpperCase()}**
-📊 Price: **$${formatPrice(currentPrice)}** | 🎯 Confidence: **${Math.round(signalDecision.confidence * 100)}%** | ⚠️ Risk: **${riskLabel}**
-⏰ Timeframe: **${timeframe.label}** (${timeframe.note})
+  // Build final message in the exact format from the example
+  const message = `${config.emoji} ${signalDecision.direction} ${tokenSymbol.toLowerCase()} - ${riskLabel} Risk
+Price: $${formatPrice(currentPrice)} Confidence: ${Math.round(signalDecision.confidence * 100)} %
+Timeframe: ${timeframe.label} (${timeframe.note} recommended)
 
-🗒️ *Market Snapshot*
-The market indicators suggest that $${tokenSymbol.toUpperCase()} ${
-    signalDecision.direction === "BUY" ? "might be a good buying opportunity" :
-    signalDecision.direction === "SELL" ? "shows potential selling signals" :
-    "is in a neutral range"
-  }. ${signalDecision.reasoning.slice(0, 200)}...
+🗒️ Market Snapshot
+${signalDecision.reasoning}
 
-🔍 *Why?*
+🔍 Why?
 ${whySection}
 
-🎯 **Suggested Action**
+🎯 Suggested Action
 ${suggestedAction}
 
 ⚠️ DYOR - Always do your own research.`;
 
   // Determine level based on risk and confidence
-  const level = signalDecision.riskLevel === "HIGH" || signalDecision.confidence >= 0.8 ? 3 :
-                signalDecision.riskLevel === "MEDIUM" || signalDecision.confidence >= 0.6 ? 2 : 1;
+  const level =
+    signalDecision.riskLevel === "HIGH" || signalDecision.confidence >= 0.8
+      ? 3
+      : signalDecision.riskLevel === "MEDIUM" || signalDecision.confidence >= 0.6
+        ? 2
+        : 1;
 
   return {
     finalSignal: {
       level: level as 1 | 2 | 3,
-      title: `${config.emoji} [${signalDecision.direction}] $${tokenSymbol.toUpperCase()}`,
+      title: `${config.emoji} ${signalDecision.direction} ${tokenSymbol.toLowerCase()} - ${riskLabel} Risk`,
       message,
       priority: signalDecision.riskLevel as "LOW" | "MEDIUM" | "HIGH",
       tags: [tokenSymbol.toLowerCase(), signalDecision.direction.toLowerCase(), signalDecision.riskLevel.toLowerCase()],
@@ -400,74 +387,11 @@ export const formatSignal = async (state: SignalGraphState) => {
     return createNoSignalResponse(state);
   }
 
-  // Try LLM formatting first
-  try {
-    const promptVariables = {
-      tokenSymbol: state.tokenSymbol,
-      tokenAddress: state.tokenAddress,
-      signalType: state.signalDecision.signalType,
-      direction: state.signalDecision.direction,
-      currentPrice: state.currentPrice.toString(),
-      confidence: Math.round(state.signalDecision.confidence * 100).toString(),
-      riskLevel: state.signalDecision.riskLevel,
-      timeframe: state.signalDecision.timeframe,
-      reasoning: state.signalDecision.reasoning,
-      keyFactors: state.signalDecision.keyFactors.join(", "),
-      marketSentiment: state.signalDecision.marketSentiment,
-      priceExpectation: state.signalDecision.priceExpectation,
-      technicalData: JSON.stringify(state.technicalAnalysis || {}),
-      language: "English",
-    };
+  // Use simple template formatting for consistency
+  logger.info("Using simple template-based signal formatting", {
+    tokenAddress: state.tokenAddress,
+    signalType: state.signalDecision?.signalType,
+  });
 
-    logger.info("Executing signal formatting with LLM", {
-      tokenAddress: state.tokenAddress,
-      signalType: state.signalDecision.signalType,
-      direction: state.signalDecision.direction,
-      confidence: state.signalDecision.confidence,
-      promptVariables: {
-        tokenSymbol: promptVariables.tokenSymbol,
-        signalType: promptVariables.signalType,
-        direction: promptVariables.direction,
-        currentPrice: promptVariables.currentPrice,
-        confidence: promptVariables.confidence,
-      },
-    });
-
-    const chain = signalFormattingPrompt.pipe(gpt4oMini.withStructuredOutput(signalFormattingSchema));
-
-    logger.info("About to invoke LLM chain", {
-      tokenAddress: state.tokenAddress,
-      chainConfigured: true,
-    });
-
-    const llmResult = await chain.invoke(promptVariables);
-
-    return {
-      finalSignal: {
-        ...llmResult,
-        buttons: createPhantomButtons(state.tokenAddress, state.tokenSymbol),
-      },
-    };
-  } catch (error) {
-    logger.error("LLM signal formatting failed, using simple template fallback", {
-      tokenAddress: state.tokenAddress,
-      tokenSymbol: state.tokenSymbol,
-      error: error instanceof Error ? error.message : String(error),
-      errorStack: error instanceof Error ? error.stack : undefined,
-      errorName: error instanceof Error ? error.constructor.name : typeof error,
-      hasSignalDecision: !!state.signalDecision,
-      hasTechnicalAnalysis: !!state.technicalAnalysis,
-      hasStaticFilterResult: !!state.staticFilterResult,
-      signalType: state.signalDecision?.signalType,
-      direction: state.signalDecision?.direction,
-    });
-
-    // Fallback to simple formatting
-    logger.info("Using simple template-based signal formatting", {
-      tokenAddress: state.tokenAddress,
-      signalType: state.signalDecision?.signalType,
-    });
-
-    return createSimpleSignalResponse(state);
-  }
+  return createSimpleSignalResponse(state);
 };
