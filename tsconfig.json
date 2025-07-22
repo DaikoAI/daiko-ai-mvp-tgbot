@@ -28,6 +28,6 @@
 
     // Added
     "jsxImportSource": "hono/jsx",
-    "types": ["./worker-configuration.d.ts", "node", "bun"]
+    "types": ["./src/types/worker-configuration.d.ts", "node", "bun"]
   }
 }
