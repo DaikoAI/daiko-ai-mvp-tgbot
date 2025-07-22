@@ -29,7 +29,10 @@ export class TechnicalIndicatorAnalyzer {
 
   private analyzeRSI(): void {
     const rsi = safeParseNumber(this.ta?.rsi);
-    if (rsi === null) return;
+    if (rsi === null || rsi < 0 || rsi > 100) {
+      // RSIは0-100の範囲である必要がある
+      return;
+    }
 
     let condition: string;
     let priority = 0;
