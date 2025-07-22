@@ -3,6 +3,7 @@ import { generateSignal } from "./agents/signal/graph";
 import { OHLCV_RETENTION } from "./constants/database";
 import { isExcludedToken } from "./constants/signal-cooldown";
 import { tokenOHLCV } from "./db";
+import type { TechnicalAnalysis } from "./db/schema/technical-analysis";
 import { createPhantomButtons } from "./lib/phantom";
 import { shouldSkipDueToCooldown } from "./lib/signal-cooldown";
 import { calculateTechnicalIndicators, convertTAtoDbFormat, type OHLCVData } from "./lib/ta";
@@ -17,8 +18,8 @@ import {
   createTechnicalAnalysis,
   getRecentSignals,
   getTokenOHLCV,
-  getTokens,
   getTokenSymbol,
+  getTokens,
   getUnprocessedTechnicalAnalyses,
   getUsersHoldingToken,
   markTechnicalAnalysisAsProcessed,
@@ -93,7 +94,7 @@ const updateTokenOHLCVTask = async () => {
 /**
  * Safely converts technical analysis string values to numbers, filtering out invalid data
  */
-function validateTechnicalAnalysis(analysis: any) {
+function validateTechnicalAnalysis(analysis: TechnicalAnalysis) {
   const indicators = {
     atrPercent: safeParseNumber(analysis.atr_percent),
     adx: safeParseNumber(analysis.adx),
@@ -171,6 +172,10 @@ const technicalAnalysisTask = async () => {
 
     // 最新の価格とタイムスタンプを取得
     const latestData = numericData[numericData.length - 1];
+    if (!latestData) {
+      logger.warn(`No latest data available for ${token.symbol}`);
+      return null;
+    }
     const currentPrice = latestData.close;
     const currentTimestamp = latestData.timestamp;
 
@@ -229,7 +234,7 @@ const technicalAnalysisTask = async () => {
 /**
  * 個別トークンのシグナル生成処理
  */
-const processTokenSignal = async (analysis: any) => {
+const processTokenSignal = async (analysis: TechnicalAnalysis) => {
   // トークン情報を取得
   const { tokens, tokenOHLCV, getDB } = await import("./db");
 
@@ -243,6 +248,10 @@ const processTokenSignal = async (analysis: any) => {
   }
 
   const token = tokenInfo[0];
+  if (!token) {
+    logger.warn("Token data is undefined", { tokenAddress: analysis.token });
+    return null;
+  }
 
   // 現在価格を取得（最新のOHLCVから）
   const latestOHLCV = await db
@@ -257,7 +266,13 @@ const processTokenSignal = async (analysis: any) => {
     return null;
   }
 
-  const currentPrice = parseFloat(latestOHLCV[0].close);
+  const latestOHLCVData = latestOHLCV[0];
+  if (!latestOHLCVData) {
+    logger.warn("Latest OHLCV data is undefined", { tokenAddress: analysis.token });
+    return null;
+  }
+
+  const currentPrice = parseFloat(latestOHLCVData.close);
 
   logger.info("Starting signal generation for token", {
     tokenAddress: analysis.token,

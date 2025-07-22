@@ -16,11 +16,7 @@ export const logUsageMetadata = (chunk: StreamChunk) => {
     // Fix: Extract message first to avoid undefined array access
     const lastAnalyzerMessage = chunk.analyzer.messages[chunk.analyzer.messages.length - 1];
     if (lastAnalyzerMessage?.usage_metadata) {
-      logger.info(
-        "message handler",
-        "Usage metadata (analyzer)",
-        lastAnalyzerMessage.usage_metadata,
-      );
+      logger.info("message handler", "Usage metadata (analyzer)", lastAnalyzerMessage.usage_metadata);
     }
   } else if (
     "generalist" in chunk &&
@@ -30,11 +26,7 @@ export const logUsageMetadata = (chunk: StreamChunk) => {
     // Fix: Extract message first to avoid undefined array access
     const lastGeneralistMessage = chunk.generalist.messages[chunk.generalist.messages.length - 1];
     if (lastGeneralistMessage?.usage_metadata) {
-      logger.info(
-        "message handler",
-        "Usage metadata (generalist)",
-        lastGeneralistMessage.usage_metadata,
-      );
+      logger.info("message handler", "Usage metadata (generalist)", lastGeneralistMessage.usage_metadata);
     }
   }
 };

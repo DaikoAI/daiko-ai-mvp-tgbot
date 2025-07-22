@@ -235,7 +235,8 @@ describe("Signal Cooldown System", () => {
 
       expect(cooldown).toBeGreaterThanOrEqual(15);
       expect(cooldown).toBeLessThanOrEqual(30);
-      expect(classifyMarketCondition(analysis.atrPercent!)).toBe("MEME_COIN");
+      expect(analysis.atrPercent).toBeDefined();
+      expect(classifyMarketCondition(analysis.atrPercent ?? 0)).toBe("MEME_COIN");
     });
 
     it("should handle blue-chip altcoin scenario", () => {
@@ -254,7 +255,8 @@ describe("Signal Cooldown System", () => {
       // ADX=28 triggers strong trend factor (0.7), resulting in shorter cooldown
       // 30 * 0.86 * 0.7 * 1.0 * 0.8 = 14.4 → 15 (min limit)
       expect(cooldown).toBe(15);
-      expect(classifyMarketCondition(analysis.atrPercent!)).toBe("NORMAL");
+      expect(analysis.atrPercent).toBeDefined();
+      expect(classifyMarketCondition(analysis.atrPercent ?? 0)).toBe("NORMAL");
     });
 
     it("should handle stablecoin-like scenario", () => {

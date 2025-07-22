@@ -1,6 +1,6 @@
 import { AIMessage, type BaseMessage, HumanMessage } from "@langchain/core/messages";
 import { and, desc, eq, getTableColumns, getTableName, inArray, notInArray, sql } from "drizzle-orm";
-import type { PgTable } from "drizzle-orm/pg-core";
+import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
 import { Interface } from "helius-sdk";
 import { err, ok, type Result } from "neverthrow";
 import { BATCH_PROCESSING, QUERY_LIMITS } from "../constants/database";
@@ -753,17 +753,17 @@ type BatchResult = {
  */
 type TableInfo<TTable extends PgTable> = {
   readonly table: TTable;
-  readonly columns: Record<string, any>;
+  readonly columns: Record<string, PgColumn>;
   readonly name: string;
-  readonly conflictColumns: any[];
-  readonly updateObject: Record<string, any>;
+  readonly conflictColumns: PgColumn[];
+  readonly updateObject: Record<string, PgColumn>;
 };
 
 /**
  * テーブルかどうかを判定する型ガード
  */
-function isTable(value: any): value is PgTable {
-  return value && typeof value === "object" && value._ && value._.columns;
+function isTable(value: unknown): value is PgTable {
+  return value != null && typeof value === "object" && "_.name" in value;
 }
 
 /**
