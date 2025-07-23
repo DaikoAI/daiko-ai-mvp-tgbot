@@ -22,14 +22,6 @@ const TIMEFRAME_CONFIG = {
 } as const;
 
 /**
- * Formats price with full precision for accurate display
- */
-const formatPrice = (price: number): string => {
-  // Return full precision as string to match exact format from example
-  return price.toString();
-};
-
-/**
  * Creates a simple signal response with modern formatting
  */
 export const createSimpleSignalResponse = (state: SignalGraphState) => {
@@ -70,7 +62,7 @@ export const createSimpleSignalResponse = (state: SignalGraphState) => {
   // Build final message in the exact format from the example
   const message = `${config.emoji} ${signalDecision.direction} $${tokenSymbol.toUpperCase()}
 Risk: ${riskLabel}
-Price: _$${formatPrice(currentPrice)}_
+Price: _$${currentPrice.toString()}_
 Confidence: ${Math.round(signalDecision.confidence * 100)}%
 Timeframe: ${timeframe.label} (${timeframe.note} recommended)
 
