@@ -94,7 +94,7 @@ export const searchMultiple = async (searches: TavilySearchOptions[]): Promise<T
         successfulResults.push(result.value);
       } else {
         failedSearches.push({
-          query: searches[index]?.query || `search-${index}`,
+          query: searches[index]?.query ?? `search-${index}`,
           error: result.reason,
         });
       }

@@ -6,6 +6,9 @@ import type { SignalGraphState } from "../graph-state";
 // Constants for API limits and timeouts
 const MAX_SEARCH_DURATION_MS = 30000; // 30 seconds
 
+// Constants for sentiment analysis
+const SENTIMENT_THRESHOLD_MULTIPLIER = 1.2; // Threshold multiplier for determining bullish/bearish sentiment
+
 /**
  * Convert TavilySearchResult to the expected format for evidenceResults
  */
@@ -84,7 +87,7 @@ export const fetchDataSources = async (state: SignalGraphState) => {
     });
 
     const marketSentiment =
-      bullishCount > bearishCount * 1.2 ? "BULLISH" : bearishCount > bullishCount * 1.2 ? "BEARISH" : "NEUTRAL";
+      bullishCount > bearishCount * SENTIMENT_THRESHOLD_MULTIPLIER ? "BULLISH" : bearishCount > bullishCount * SENTIMENT_THRESHOLD_MULTIPLIER ? "BEARISH" : "NEUTRAL";
 
     // Calculate quality score based on relevance and recency
     // Calculate quality score based on relevance and recency
