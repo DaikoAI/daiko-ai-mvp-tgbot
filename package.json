@@ -11,6 +11,7 @@
     "db:seed": "bun --env-file=.dev.vars run scripts/seed.ts",
     "cron:run": "bun --env-file=.dev.vars run scripts/run-cron.ts",
     "broadcast": "bun --env-file=.dev.vars run scripts/test-broadcast.ts",
+    "graphs:generate": "bun run scripts/generate-graph-images.ts",
     "build": "tsup src/**/*.ts --dts --format esm",
     "format": "biome format --write .",
     "lint": "biome lint .",
@@ -28,6 +29,7 @@
     "@langchain/openai": "^0.5.18",
     "@neondatabase/serverless": "^1.0.1",
     "@solana/web3.js": "^1.98.2",
+    "@tavily/core": "^0.5.10",
     "drizzle-orm": "^0.44.3",
     "grammy": "^1.37.0",
     "helius-sdk": "^1.5.1",
@@ -40,6 +42,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.1.2",
     "@cloudflare/workers-types": "^4.20250722.0",
+    "@mermaid-js/mermaid-cli": "^11.6.0",
     "@types/bun": "^1.2.19",
     "@types/pg": "^8.15.4",
     "drizzle-kit": "^0.31.4",

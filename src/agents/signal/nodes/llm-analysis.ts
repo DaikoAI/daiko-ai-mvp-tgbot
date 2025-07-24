@@ -29,6 +29,14 @@ export const analyzeLLMSignal = async (state: SignalGraphState) => {
   });
 
   try {
+    // Prepare evidence summary from external data with enhanced metadata
+    const evidenceSummary = state.evidenceResults?.primaryCause || "No external evidence available";
+    const evidenceConfidence = state.evidenceResults?.qualityScore?.toFixed(2) || "0.00";
+    const evidenceRecommendation = state.evidenceResults?.searchStrategy || "UNCERTAIN";
+    const marketSentiment = state.evidenceResults?.marketSentiment || "NEUTRAL";
+    const newsCategory = state.evidenceResults?.newsCategory || "NEUTRAL";
+    const sourcesCount = state.evidenceResults?.relevantSources?.length || 0;
+
     const result = await chain.invoke({
       formatInstructions: parser.getFormatInstructions(),
       tokenSymbol: state.tokenSymbol,
@@ -45,6 +53,12 @@ export const analyzeLLMSignal = async (state: SignalGraphState) => {
       signalCandidates: state.staticFilterResult.signalCandidates.join(", "),
       confluenceScore: state.staticFilterResult.confluenceScore.toFixed(3),
       riskLevel: state.staticFilterResult.riskLevel,
+      evidenceSummary,
+      evidenceConfidence,
+      evidenceRecommendation,
+      marketSentiment,
+      newsCategory,
+      sourcesCount,
     });
 
     logger.info("LLM signal analysis completed", {

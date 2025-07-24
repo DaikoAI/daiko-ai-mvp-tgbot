@@ -12,6 +12,46 @@ A Telegram bot built with Hono, LangGraph, and Drizzle ORM using Neon PostgreSQL
 - 📈 OHLCV data collection and technical analysis
 - 🔄 Automated data cleanup for optimal performance
 
+## Agent Architectures
+
+The system uses two main LangGraph agents with distinct workflows:
+
+### Signal Agent
+
+The Signal Agent processes technical analysis data to generate trading signals through a multi-stage pipeline:
+
+![Signal Agent Graph](docs/signal-agent-graph.png)
+
+**Workflow:**
+1. **Static Filter** - Apply basic threshold filters to eliminate noise
+2. **Data Fetch** - Retrieve additional market data and context
+3. **LLM Analysis** - Advanced analysis using AI to evaluate signal quality
+4. **Format Signal** - Convert analysis results into structured trading signals
+
+The agent implements conditional routing where each stage can terminate the process early if conditions aren't met, ensuring only high-quality signals are generated.
+
+### Telegram Agent
+
+The Telegram Agent handles user interactions and provides conversational AI capabilities:
+
+![Telegram Agent Graph](docs/telegram-agent-graph.png)
+
+**Workflow:**
+1. **Data Fetch** - Retrieve user profile and asset information
+2. **Generalist** - Process user queries and generate appropriate responses
+
+This streamlined architecture ensures responsive user interactions while maintaining access to user-specific data and market information.
+
+### Generating Graph Images
+
+To regenerate the agent graph visualizations:
+
+```bash
+bun run graphs:generate
+```
+
+This command will create updated PNG images in the `docs/` directory using Mermaid diagrams.
+
 ## Setup
 
 ### 1. Environment Variables

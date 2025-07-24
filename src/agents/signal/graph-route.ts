@@ -1,5 +1,5 @@
-import type { SignalGraphState } from "./graph-state";
 import { END } from "@langchain/langgraph";
+import type { SignalGraphState } from "./graph-state";
 
 /**
  * Signal Generator Router
@@ -31,19 +31,37 @@ export const signalRouter = (
 
 /**
  * Static Filter後のルーティング
- * フィルタ結果に基づいてLLM分析の実行可否を判定
+ * フィルタ結果に基づいてdata fetch実行可否を判定
  */
-export const staticFilterRouter = (state: SignalGraphState): "llm_analysis" | typeof END => {
+export const staticFilterRouter = (state: SignalGraphState): "data_fetch" | typeof END => {
   if (!state.staticFilterResult) {
     throw new Error("Static filter result not found");
   }
 
-  // 静的フィルタを通過した場合のみLLM分析を実行
+  // 静的フィルタを通過した場合のみdata fetchを実行
   if (state.staticFilterResult.shouldProceed) {
-    return "llm_analysis";
+    return "data_fetch";
   }
 
   // フィルタで除外された場合は終了
+  return END;
+};
+
+/**
+ * Data Fetch後のルーティング
+ * data fetch結果に基づいてLLM分析の実行可否を判定
+ */
+export const dataFetchRouter = (state: SignalGraphState): "llm_analysis" | typeof END => {
+  if (!state.evidenceResults) {
+    throw new Error("Evidence results not found");
+  }
+
+  // searchStrategyに基づいてLLM分析の実行を決定
+  if (state.evidenceResults.searchStrategy === "BASIC" || state.evidenceResults.searchStrategy === "FAILED") {
+    return "llm_analysis";
+  }
+
+  // SKIPの場合は終了
   return END;
 };
 

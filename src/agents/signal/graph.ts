@@ -1,8 +1,9 @@
 import { START, StateGraph } from "@langchain/langgraph";
 import type { TechnicalAnalysis } from "../../db/schema/technical-analysis";
 import { logger } from "../../utils/logger";
-import { formatSignalRouter, llmAnalysisRouter, staticFilterRouter } from "./graph-route";
+import { dataFetchRouter, formatSignalRouter, llmAnalysisRouter, staticFilterRouter } from "./graph-route";
 import { signalGraphState } from "./graph-state";
+import { fetchDataSources } from "./nodes/data-fetch";
 import { analyzeLLMSignal } from "./nodes/llm-analysis";
 import { formatSignal } from "./nodes/signal-formatter";
 import { applyStaticFilter } from "./nodes/static-filter";
@@ -17,12 +18,14 @@ export const initSignalGraph = () => {
   const workflow = new StateGraph(signalGraphState)
     // ノード定義
     .addNode("static_filter", applyStaticFilter)
+    .addNode("data_fetch", fetchDataSources)
     .addNode("llm_analysis", analyzeLLMSignal)
     .addNode("format_signal", formatSignal)
 
     // エッジ定義
     .addEdge(START, "static_filter")
     .addConditionalEdges("static_filter", staticFilterRouter)
+    .addConditionalEdges("data_fetch", dataFetchRouter)
     .addConditionalEdges("llm_analysis", llmAnalysisRouter)
     .addConditionalEdges("format_signal", formatSignalRouter);
 
@@ -32,10 +35,7 @@ export const initSignalGraph = () => {
 };
 
 /**
- * Signal Generator実行関数
- *
- * cronタスクから呼び出されるメイン関数
- * テクニカル分析結果からトレーディングシグナルを生成
+ * Generate Signal using compiled graph
  */
 export const generateSignal = async (input: {
   tokenAddress: string;
