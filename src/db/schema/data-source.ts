@@ -1,5 +1,5 @@
-import { pgTable, text, timestamp, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { signal } from "./signal";
 
 export const dataSource = pgTable(

@@ -199,16 +199,17 @@ export class TechnicalIndicatorAnalyzer {
     let condition: string;
     let priority = 0;
 
-    if (atrPercent >= 8) {
+    if (atrPercent > 10) {
       condition = "extremely high volatility - large price swings expected";
       priority = 2;
-    } else if (atrPercent >= 5) {
+    } else if (atrPercent > 5) {
       condition = "high volatility - increased risk and opportunity";
       priority = 1;
-    } else if (atrPercent >= 3) {
+    } else if (atrPercent >= 2) {
       condition = "moderate volatility - normal price movement";
       priority = 0;
     } else {
+      // ATR < 2%
       condition = "low volatility - range-bound price action";
       priority = 0;
     }
