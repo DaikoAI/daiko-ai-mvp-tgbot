@@ -349,11 +349,11 @@ describe("Signal Agent", () => {
 
         // Verify message contains proper sections with half-width dashes
         expect(signal.finalSignal.message).not.toContain("–"); // No full-width dashes
-        expect(signal.finalSignal.message).toMatch(/Price: \$[\d.]+/); // New format: Price: $100
-        expect(signal.finalSignal.message).toMatch(/Confidence: \d+ %/); // New format: Confidence: 65 %
-        expect(signal.finalSignal.message).toContain("🗒️ Market Snapshot");
-        expect(signal.finalSignal.message).toContain("🔍 Why?");
-        expect(signal.finalSignal.message).toContain("🎯 Suggested Action");
+        expect(signal.finalSignal.message).toMatch(/Price: _\$[\d.]+_/); // New format: Price: _$100_
+        expect(signal.finalSignal.message).toMatch(/Confidence: \d+%/); // New format: Confidence: 65%
+        expect(signal.finalSignal.message).toContain("🗒️ *Market Snapshot*");
+        expect(signal.finalSignal.message).toContain("🔍 *Why?*");
+        expect(signal.finalSignal.message).toContain("🎯 *Suggested Action*");
         expect(signal.finalSignal.message).toContain("⚠️ DYOR - Always do your own research.");
       }
     });
@@ -422,15 +422,16 @@ describe("Signal Agent", () => {
 
       // Test new format structure
       expect(result.finalSignal.title).toBe("🚀 BUY $SOL - Medium Risk");
-      expect(result.finalSignal.message).toContain("🚀 BUY $SOL - Medium Risk");
-      expect(result.finalSignal.message).toContain("Price: $125.5");
-      expect(result.finalSignal.message).toContain("Confidence: 75 %");
+      expect(result.finalSignal.message).toContain("🚀 BUY $SOL");
+      expect(result.finalSignal.message).toContain("Risk: Medium");
+      expect(result.finalSignal.message).toContain("Price: _$125.5_");
+      expect(result.finalSignal.message).toContain("Confidence: 75%");
       expect(result.finalSignal.message).toContain("Timeframe: Mid-term (4-12h re-check recommended)");
 
       // Test required sections
-      expect(result.finalSignal.message).toContain("🗒️ Market Snapshot");
-      expect(result.finalSignal.message).toContain("🔍 Why?");
-      expect(result.finalSignal.message).toContain("🎯 Suggested Action");
+      expect(result.finalSignal.message).toContain("🗒️ *Market Snapshot*");
+      expect(result.finalSignal.message).toContain("🔍 *Why?*");
+      expect(result.finalSignal.message).toContain("🎯 *Suggested Action*");
       expect(result.finalSignal.message).toContain("⚠️ DYOR - Always do your own research.");
     });
 
@@ -460,8 +461,10 @@ describe("Signal Agent", () => {
       expect(result.finalSignal.level).toBe(3); // HIGH risk
       expect(result.finalSignal.priority).toBe("HIGH");
       expect(result.finalSignal.title).toBe("🚨 SELL $WIF - High Risk");
-      expect(result.finalSignal.message).toContain("🚨 SELL $WIF - High Risk");
-      expect(result.finalSignal.message).toContain("Confidence: 82 %");
+      expect(result.finalSignal.message).toContain("🚨 SELL $WIF");
+      expect(result.finalSignal.message).toContain("Risk: High");
+      expect(result.finalSignal.message).toContain("Price: _$2.45_");
+      expect(result.finalSignal.message).toContain("Confidence: 82%");
       expect(result.finalSignal.message).toContain("Timeframe: Short-term (1-4h re-check recommended)");
       expect(result.finalSignal.message).toContain("Consider partial or full sell");
     });
@@ -492,7 +495,10 @@ describe("Signal Agent", () => {
       expect(result.finalSignal.level).toBe(1); // LOW risk
       expect(result.finalSignal.priority).toBe("LOW");
       expect(result.finalSignal.title).toBe("📊 NEUTRAL $SOL - Low Risk");
-      expect(result.finalSignal.message).toContain("📊 NEUTRAL $SOL - Low Risk");
+      expect(result.finalSignal.message).toContain("📊 NEUTRAL $SOL");
+      expect(result.finalSignal.message).toContain("Risk: Low");
+      expect(result.finalSignal.message).toContain("Price: _$95_");
+      expect(result.finalSignal.message).toContain("Confidence: 45%");
       expect(result.finalSignal.message).toContain("Timeframe: Long-term (12-24h re-check recommended)");
       expect(result.finalSignal.message).toContain("Hold current position");
     });

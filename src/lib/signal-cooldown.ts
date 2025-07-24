@@ -1,8 +1,8 @@
 import {
   COOLDOWN_CONFIG,
   MARKET_CONDITIONS,
-  SIGNAL_STRENGTH,
   type MarketCondition,
+  SIGNAL_STRENGTH,
   type SignalStrengthLevel,
 } from "../constants/signal-cooldown";
 import { logger } from "../utils/logger";
