@@ -1,6 +1,6 @@
-import type { SignalGraphState } from "../graph-state";
 import { applyStaticSignalFilter } from "../../../lib/static-signal-filter";
 import { logger } from "../../../utils/logger";
+import type { SignalGraphState } from "../graph-state";
 
 /**
  * Static Filter Node

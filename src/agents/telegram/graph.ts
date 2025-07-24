@@ -15,7 +15,7 @@ export async function initTelegramGraph(userId: string) {
       // edges
       .addEdge(START, "dataFetch")
       .addEdge("dataFetch", "generalist")
-      .addEdge("dataFetch", END);
+      .addEdge("generalist", END);
 
     const graph = workflow.compile();
 
