@@ -59,6 +59,33 @@ export const createSimpleSignalResponse = (state: SignalGraphState) => {
   };
   const suggestedAction = actionMap[signalDecision.direction as keyof typeof actionMap];
 
+  // Build information sources section if available with enhanced metadata
+  let sourcesSection = "";
+  if (state.evidenceResults?.relevantSources && state.evidenceResults.relevantSources.length > 0) {
+    const sources = state.evidenceResults.relevantSources.slice(0, 3); // Limit to 3 sources
+    const sourceLinks = sources
+      .map((source, index) => {
+        if (source?.url && source?.title) {
+          const title = source.title.slice(0, 50); // Truncate long titles
+          const domain = source.domain || new URL(source.url).hostname;
+          return `${index + 1}. [${title}](${source.url}) (${domain})`;
+        }
+        return null;
+      })
+      .filter(Boolean)
+      .join("\n");
+
+    // Add market sentiment and search metadata
+    const { marketSentiment, searchTime, totalResults } = state.evidenceResults;
+    const sentimentEmoji = marketSentiment === "BULLISH" ? "📈" : marketSentiment === "BEARISH" ? "📉" : "⚖️";
+
+    if (sourceLinks) {
+      sourcesSection = `\n\n📰 *Information Sources* ${sentimentEmoji} ${marketSentiment}
+${sourceLinks}
+_Found ${totalResults} sources in ${(searchTime / 1000).toFixed(1)}s_`;
+    }
+  }
+
   // Build final message in the exact format from the example
   const message = `${config.emoji} ${signalDecision.direction} $${tokenSymbol.toUpperCase()}
 Risk: ${riskLabel}
@@ -73,7 +100,7 @@ ${signalDecision.reasoning}
 ${whySection}
 
 🎯 *Suggested Action*
-${suggestedAction}
+${suggestedAction}${sourcesSection}
 
 ⚠️ DYOR - Always do your own research.`;
 

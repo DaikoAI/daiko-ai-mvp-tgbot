@@ -1,76 +1,87 @@
 #!/usr/bin/env bun
 
-import { createSignal } from "../src/utils/db";
+import { generateSignal } from "../src/agents/signal/graph";
+import { logger } from "../src/utils/logger";
 
-async function testSignal() {
-  // Test with new signal format
-  const testSignalData = {
-    id: "test_signal_123",
-    token: "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
-    signalType: "TECHNICAL_ALERT",
-    value: {
-      level: 2,
-      priority: "MEDIUM",
-      tags: ["test", "technical", "buy"],
-      technicalAnalysisId: "test_ta_123",
-      buttons: [
-        {
-          text: "👻 Open Test Token in Phantom",
-          url: "https://phantom.app/ul/browse/https%3A%2F%2Fdexscreener.com%2Fsolana%2FEKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
-        },
-      ],
-    },
-    title: "🚀 [BUY] Test Token",
-    body: `🚀 **[BUY] Test Token** - Medium Risk
-Price: \`$1.234\`\tConfidence: **75 %**
-Timeframe: Mid-term (4-12 h re-check recommended)
+// Sample technical analysis data for testing
+const sampleTechnicalAnalysis = {
+  id: "test-123",
+  token: "So11111111111111111111111111111111111111112",
+  timestamp: Math.floor(Date.now() / 1000),
+  rsi: "75.5", // Overbought condition to trigger signal
+  vwap: "245.50",
+  vwap_deviation: "3.2", // Above threshold
+  obv: "1500000000",
+  obv_zscore: "2.1",
+  percent_b: "0.92", // Near upper Bollinger band
+  bb_width: "0.045",
+  atr: "12.34",
+  atr_percent: "5.8",
+  adx: "42.1", // Strong trend
+  adx_direction: "UP",
+  signalGenerated: false,
+  createdAt: new Date(),
+};
 
-🗒️ *Market Snapshot*
-Strong momentum building like a spring ready to bounce back. Technical indicators suggest accumulation phase ending.
-
-🔍 *Why?*
-• RSI 35 - oversold conditions favor buyers
-• Bollinger -1σ touch - price near support band
-• ADX 28 - moderate trend strength building
-
-🎯 **Suggested Action**
-Consider gradual *buy* entry, re-evaluate price after 4-12 h re-check recommended
-
-⚠️ DYOR - Always do your own research.`,
-    direction: "BUY",
-    confidence: "0.75",
-    explanation:
-      "Technical analysis indicates oversold conditions with potential for reversal. Multiple indicators suggest buying opportunity with medium risk profile.",
-    timestamp: new Date(),
-  };
+/**
+ * Test script for new data fetch layer in signal generation
+ */
+async function testSignalWithDataFetch() {
+  logger.info("=== Testing Signal Generation with Data Fetch Layer ===");
 
   try {
-    console.log("Testing signal creation with new format:", {
-      ...testSignalData,
-      body: `${testSignalData.body.substring(0, 100)}...`, // Truncate for readability
+    const result = await generateSignal({
+      tokenAddress: "So11111111111111111111111111111111111111112",
+      tokenSymbol: "SOL",
+      currentPrice: 254.32,
+      technicalAnalysis: sampleTechnicalAnalysis,
     });
 
-    const result = await createSignal(testSignalData);
-    console.log("Signal created successfully:", {
-      id: result.id,
-      token: result.token,
-      signalType: result.signalType,
-      title: result.title,
-      direction: result.direction,
-      confidence: result.confidence,
-      timestamp: result.timestamp,
+    logger.info("Signal generation test completed", {
+      hasSignal: !!result.finalSignal,
+      signalLevel: result.finalSignal?.level,
+      priority: result.finalSignal?.priority,
+      hasEvidenceResults: !!result.evidenceResults,
+      evidenceSourcesCount: result.evidenceResults?.relevantSources?.length || 0,
+      evidenceConfidence: result.evidenceResults?.overallConfidence,
+      evidenceRecommendation: result.evidenceResults?.recommendation,
     });
 
-    console.log("Signal value structure:", result.value);
-  } catch (error) {
-    console.error("Error creating signal:", error);
-
-    // Display more detailed error information
-    if (error instanceof Error) {
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
+    // Print the final message to see information sources
+    if (result.finalSignal?.message) {
+      console.log("\n=== Generated Signal Message ===");
+      console.log(result.finalSignal.message);
+      console.log("================================\n");
     }
+
+    // Print evidence sources if available
+    if (result.evidenceResults?.relevantSources && result.evidenceResults.relevantSources.length > 0) {
+      console.log("\n=== Evidence Sources Found ===");
+      result.evidenceResults.relevantSources.forEach((source, index) => {
+        if (typeof source === "object" && source !== null && "url" in source && "title" in source) {
+          console.log(`${index + 1}. ${source.title}`);
+          console.log(`   URL: ${source.url}`);
+        }
+      });
+      console.log("===============================\n");
+    }
+
+    return result;
+  } catch (error) {
+    logger.error("Signal generation test failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
   }
 }
 
-testSignal().catch(console.error);
+// Run the test
+testSignalWithDataFetch()
+  .then(() => {
+    logger.info("Test completed successfully");
+    process.exit(0);
+  })
+  .catch((error) => {
+    logger.error("Test failed", error);
+    process.exit(1);
+  });

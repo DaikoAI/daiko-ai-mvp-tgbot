@@ -56,12 +56,24 @@ export const signalGraphState = Annotation.Root({
     reducer: (x, y) => y ?? x,
   }),
 
-  // === Evidence Search Results (for future implementation) ===
+  // === Evidence Search Results (Tavily SDK) ===
   evidenceResults: Annotation<{
-    relevantSources: Record<string, unknown>[];
-    overallConfidence: number;
-    primaryCause: string;
-    recommendation: "INCLUDE" | "EXCLUDE" | "UNCERTAIN";
+    relevantSources: Array<{
+      title: string;
+      url: string;
+      content: string;
+      score: number;
+      domain: string;
+      publishedDate?: string;
+    }>;
+    searchQueries: string[];
+    totalResults: number;
+    searchTime: number;
+    qualityScore: number;
+    primaryCause: string | null;
+    searchStrategy: "BASIC" | "SKIP" | "FAILED";
+    marketSentiment: "BULLISH" | "BEARISH" | "NEUTRAL";
+    newsCategory: "BULLISH" | "BEARISH" | "NEUTRAL";
   }>({
     reducer: (x, y) => y ?? x,
   }),

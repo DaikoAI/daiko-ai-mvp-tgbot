@@ -42,6 +42,12 @@ const ANALYSIS_INPUT_VARIABLES = [
   "confluenceScore",
   "riskLevel",
   "formatInstructions",
+  "evidenceSummary",
+  "evidenceConfidence",
+  "evidenceRecommendation",
+  "marketSentiment",
+  "newsCategory",
+  "sourcesCount",
 ];
 
 /**
@@ -87,6 +93,12 @@ export const signalAnalysisPrompt = new PromptTemplate({
 - Confluence: {confluenceScore}
 - Risk: {riskLevel}
 
+**External Evidence:**
+- Summary: {evidenceSummary}
+- Confidence: {evidenceConfidence} (from {sourcesCount} sources)
+- Recommendation: {evidenceRecommendation}
+- Market Sentiment: {marketSentiment} ({newsCategory})
+
 ## Task
 
 Analyze the data and determine if a trading signal should be generated. Use beginner-friendly explanations focusing on:
@@ -94,6 +106,7 @@ Analyze the data and determine if a trading signal should be generated. Use begi
 2. Current market sentiment and momentum
 3. Risk-reward potential across timeframes
 4. Market volatility impact on safety
+5. How external evidence supports or contradicts technical analysis
 
 CRITICAL: Use only half-width dashes (-) and standard punctuation. Never use em-dashes (—) or en-dashes (–).
 
