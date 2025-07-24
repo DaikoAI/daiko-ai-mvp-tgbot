@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { generateSignal } from "./agents/signal/graph";
 import { OHLCV_RETENTION } from "./constants/database";
 import { isExcludedToken } from "./constants/signal-cooldown";
+import { SIGNAL_THRESHOLDS } from "./constants/signal-thresholds";
 import { getDB, tokenOHLCV, tokens } from "./db";
 import type { TechnicalAnalysis } from "./db/schema/technical-analysis";
 import { createPhantomButtons } from "./lib/phantom";
@@ -293,6 +294,18 @@ const processTokenSignal = async (analysis: TechnicalAnalysis) => {
       hasResult: !!result,
       hasFinalSignal: !!result.finalSignal,
       signalLevel: result.finalSignal?.level,
+    });
+    return null;
+  }
+
+  // LLM confidence足切りチェック
+  const llmConfidence = result.signalDecision?.confidence || 0;
+  if (llmConfidence < SIGNAL_THRESHOLDS.FINAL_CONFIDENCE.MIN_THRESHOLD) {
+    logger.info("Signal rejected due to insufficient confidence", {
+      tokenAddress: analysis.token,
+      tokenSymbol: token.symbol,
+      llmConfidence: (llmConfidence * 100).toFixed(1),
+      minThreshold: (SIGNAL_THRESHOLDS.FINAL_CONFIDENCE.MIN_THRESHOLD * 100).toFixed(1),
     });
     return null;
   }

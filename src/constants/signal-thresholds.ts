@@ -67,6 +67,12 @@ export const SIGNAL_THRESHOLDS = {
       OBV_Z_SCORE: 0.1,
     },
   },
+
+  // Phase 3: LLM出力後の最終判定
+  FINAL_CONFIDENCE: {
+    // LLM出力後のconfidence閾値
+    MIN_THRESHOLD: 0.7, // 70%未満は通知しない
+  },
 } as const;
 
 export const SIGNAL_TYPES = {
