@@ -87,7 +87,10 @@ export const fetchDataSources = async (state: SignalGraphState) => {
       bullishCount > bearishCount * 1.2 ? "BULLISH" : bearishCount > bullishCount * 1.2 ? "BEARISH" : "NEUTRAL";
 
     // Calculate quality score based on relevance and recency
-    const avgScore = relevantSources.reduce((sum, source) => sum + source.score, 0) / relevantSources.length;
+    // Calculate quality score based on relevance and recency
+    const avgScore = relevantSources.length > 0
+      ? relevantSources.reduce((sum, source) => sum + source.score, 0) / relevantSources.length
+      : 0;
     const qualityScore = Math.min(avgScore * (relevantSources.length / 3), 1);
 
     logger.info("Data fetch completed successfully", {
