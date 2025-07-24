@@ -25,8 +25,13 @@ const buildMockState = (): SignalGraphState => {
       signalType: "Oversold Bounce",
       direction: "BUY",
       confidence: 0.65,
-      reasoning: "SOL is deeply oversold (RSI 15) and trading 5% below its volume-weighted average price. This double signal suggests buyers may soon step in for a relief rally. The ADX of 25 confirms a trend exists, and the low Bollinger position (%B 0.5) shows price is at the lower band, increasing bounce odds. While risk is HIGH due to volatility (2% ATR), the reward potential outweighs the risk for a short-term swing.",
-      keyFactors: ["RSI 15 - extremely oversold conditions favor buyers", "ADX 25 - strong trend developing (0ward)", "VWAP Dev +5.0% - significant premium to VWAP"],
+      reasoning:
+        "SOL is deeply oversold (RSI 15) and trading 5% below its volume-weighted average price. This double signal suggests buyers may soon step in for a relief rally. The ADX of 25 confirms a trend exists, and the low Bollinger position (%B 0.5) shows price is at the lower band, increasing bounce odds. While risk is HIGH due to volatility (2% ATR), the reward potential outweighs the risk for a short-term swing.",
+      keyFactors: [
+        "RSI 15 - extremely oversold conditions favor buyers",
+        "ADX 25 - strong trend developing (0ward)",
+        "VWAP Dev +5.0% - significant premium to VWAP",
+      ],
       riskLevel: "HIGH",
       timeframe: "SHORT",
       marketSentiment: "Bullish reversal expected",

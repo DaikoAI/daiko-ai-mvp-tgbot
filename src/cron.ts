@@ -2,7 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { generateSignal } from "./agents/signal/graph";
 import { OHLCV_RETENTION } from "./constants/database";
 import { isExcludedToken } from "./constants/signal-cooldown";
-import { tokenOHLCV } from "./db";
+import { getDB, tokenOHLCV, tokens } from "./db";
 import type { TechnicalAnalysis } from "./db/schema/technical-analysis";
 import { createPhantomButtons } from "./lib/phantom";
 import { shouldSkipDueToCooldown } from "./lib/signal-cooldown";
@@ -236,8 +236,6 @@ const technicalAnalysisTask = async () => {
  */
 const processTokenSignal = async (analysis: TechnicalAnalysis) => {
   // トークン情報を取得
-  const { tokens, tokenOHLCV, getDB } = await import("./db");
-
   const db = getDB();
 
   const tokenInfo = await db.select().from(tokens).where(eq(tokens.address, analysis.token)).limit(1);
@@ -341,6 +339,67 @@ const processTokenSignal = async (analysis: TechnicalAnalysis) => {
   };
 };
 
+/**
+ * Convert validated indicators to technical analysis result format
+ */
+const createTechnicalAnalysisResult = (
+  analysis: TechnicalAnalysis,
+  validatedIndicators: NonNullable<ReturnType<typeof validateTechnicalAnalysis>>,
+) => {
+  return {
+    atrPercent: validatedIndicators.atrPercent ?? 2,
+    adx: validatedIndicators.adx ?? 20,
+    rsi: validatedIndicators.rsi ?? 50,
+    vwap: parseFloat(analysis.vwap || "0"),
+    vwapDeviation: validatedIndicators.vwapDeviation ?? 0,
+    obv: parseFloat(analysis.obv || "0"),
+    obvZScore: validatedIndicators.obvZScore ?? 0,
+    percentB: validatedIndicators.percentB ?? 0.5,
+    bbWidth: parseFloat(analysis.bb_width || "0"),
+    atr: parseFloat(analysis.atr || "0"),
+    adxDirection: (analysis.adx_direction as "UP" | "DOWN" | "NEUTRAL") || "NEUTRAL",
+  };
+};
+
+/**
+ * Process a single technical analysis for signal generation
+ */
+const processAnalysisForSignal = async (analysis: TechnicalAnalysis) => {
+  try {
+    // Validate technical analysis data and filter out NaN values
+    const validatedIndicators = validateTechnicalAnalysis(analysis);
+    if (!validatedIndicators) {
+      // Mark as processed and skip due to insufficient valid indicators
+      await markTechnicalAnalysisAsProcessed(analysis.id);
+      return null;
+    }
+
+    // Convert to required format with validated values
+    const technicalAnalysisResult = createTechnicalAnalysisResult(analysis, validatedIndicators);
+
+    // Check if signal generation should be skipped due to cooldown
+    if (await shouldSkipDueToCooldown(analysis.token, technicalAnalysisResult)) {
+      logger.info("Skipping signal generation due to cooldown", {
+        tokenAddress: analysis.token,
+        atrPercent: technicalAnalysisResult.atrPercent,
+        adx: technicalAnalysisResult.adx,
+        rsi: technicalAnalysisResult.rsi,
+      });
+      // Mark as processed to avoid reprocessing
+      await markTechnicalAnalysisAsProcessed(analysis.id);
+      return null;
+    }
+
+    return await processTokenSignal(analysis);
+  } catch (error) {
+    logger.error("Signal generation failed for token", {
+      tokenAddress: analysis.token,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+};
+
 const generateSignalTask = async () => {
   logger.info("Starting signal generation task");
 
@@ -356,53 +415,7 @@ const generateSignalTask = async () => {
     logger.info(`Found ${unprocessedAnalyses.length} unprocessed technical analyses`);
 
     // 各トークンに対してシグナル生成を並列実行
-    const signalPromises = unprocessedAnalyses.map(async (analysis) => {
-      try {
-        // Validate technical analysis data and filter out NaN values
-        const validatedIndicators = validateTechnicalAnalysis(analysis);
-        if (!validatedIndicators) {
-          // Mark as processed and skip due to insufficient valid indicators
-          await markTechnicalAnalysisAsProcessed(analysis.id);
-          return null;
-        }
-
-        // Convert to required format with validated values
-        const technicalAnalysisResult = {
-          atrPercent: validatedIndicators.atrPercent ?? 2,
-          adx: validatedIndicators.adx ?? 20,
-          rsi: validatedIndicators.rsi ?? 50,
-          vwap: parseFloat(analysis.vwap || "0"),
-          vwapDeviation: validatedIndicators.vwapDeviation ?? 0,
-          obv: parseFloat(analysis.obv || "0"),
-          obvZScore: validatedIndicators.obvZScore ?? 0,
-          percentB: validatedIndicators.percentB ?? 0.5,
-          bbWidth: parseFloat(analysis.bb_width || "0"),
-          atr: parseFloat(analysis.atr || "0"),
-          adxDirection: (analysis.adx_direction as "UP" | "DOWN" | "NEUTRAL") || "NEUTRAL",
-        };
-
-        // Check if signal generation should be skipped due to cooldown
-        if (await shouldSkipDueToCooldown(analysis.token, technicalAnalysisResult)) {
-          logger.info("Skipping signal generation due to cooldown", {
-            tokenAddress: analysis.token,
-            atrPercent: technicalAnalysisResult.atrPercent,
-            adx: technicalAnalysisResult.adx,
-            rsi: technicalAnalysisResult.rsi,
-          });
-          // Mark as processed to avoid reprocessing
-          await markTechnicalAnalysisAsProcessed(analysis.id);
-          return null;
-        }
-
-        return await processTokenSignal(analysis);
-      } catch (error) {
-        logger.error("Signal generation failed for token", {
-          tokenAddress: analysis.token,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return null;
-      }
-    });
+    const signalPromises = unprocessedAnalyses.map(processAnalysisForSignal);
 
     // 並列実行して結果を取得
     const results = await Promise.all(signalPromises);
@@ -423,6 +436,114 @@ const generateSignalTask = async () => {
   }
 };
 
+/**
+ * Process a single signal for Telegram broadcast
+ */
+const processSignalForTelegram = async (signalData: Awaited<ReturnType<typeof getRecentSignals>>[0]) => {
+  try {
+    const holdingUsers = await getUsersHoldingToken(signalData.token);
+
+    if (holdingUsers.length === 0) {
+      logger.info(`No users holding token, skipping signal ${signalData.id}`);
+      return { signalId: signalData.id, skipped: true };
+    }
+
+    logger.info(`Sending signal ${signalData.id} to ${holdingUsers.length} users holding token`);
+
+    // Extract buttons from signal value or generate new ones
+    let buttons: { text: string; url: string }[] = [];
+
+    // Get token symbol for button generation (if buttons are empty, regenerate them)
+    if (buttons.length === 0) {
+      const tokenSymbol = await getTokenSymbol(signalData.token);
+      buttons = createPhantomButtons(signalData.token, tokenSymbol || undefined);
+    }
+
+    const result = await sendMessage(
+      holdingUsers.map((u) => u.userId),
+      escapeMarkdown(signalData.body),
+      {
+        parse_mode: "Markdown",
+        buttons,
+      },
+    );
+
+    if (!result.isOk()) {
+      logger.error(`Failed to send signal ${signalData.id} due to system error`, {
+        error: result.error,
+        signalId: signalData.id,
+        tokenAddress: signalData.token,
+      });
+      return {
+        signalId: signalData.id,
+        success: false,
+        systemError: true,
+        stats: null,
+      };
+    }
+
+    const stats = result.value;
+
+    // Check if any messages were successfully delivered
+    if (stats.successCount === 0) {
+      logger.error(`Signal ${signalData.id} failed to deliver to any users`, {
+        signalId: signalData.id,
+        tokenAddress: signalData.token,
+        totalUsers: stats.totalUsers,
+        failureCount: stats.failureCount,
+        failedUserIds: stats.failedUsers,
+        firstError: stats.results.find((r) => !r.success)?.error,
+      });
+      return {
+        signalId: signalData.id,
+        success: false,
+        systemError: false,
+        stats,
+      };
+    }
+
+    // Log success with detailed stats
+    logger.info(`Signal ${signalData.id} broadcast completed`, {
+      signalId: signalData.id,
+      tokenAddress: signalData.token,
+      totalUsers: stats.totalUsers,
+      successCount: stats.successCount,
+      failureCount: stats.failureCount,
+      successRate: stats.totalUsers > 0 ? `${((stats.successCount / stats.totalUsers) * 100).toFixed(1)}%` : "0%",
+    });
+
+    // Log partial failures if they exist
+    if (stats.failureCount > 0) {
+      logger.warn(`Signal ${signalData.id} had ${stats.failureCount} delivery failures`, {
+        signalId: signalData.id,
+        failedUserIds: stats.failedUsers,
+        sampleErrors: stats.results
+          .filter((r) => !r.success)
+          .slice(0, 3)
+          .map((r) => r.error),
+      });
+    }
+
+    return {
+      signalId: signalData.id,
+      success: true,
+      systemError: false,
+      stats,
+    };
+  } catch (error) {
+    logger.error(`Error processing signal ${signalData.id}:`, {
+      error: error instanceof Error ? error.message : String(error),
+      signalId: signalData.id,
+    });
+    return {
+      signalId: signalData.id,
+      success: false,
+      systemError: true,
+      stats: null,
+    };
+  }
+};
+
 const sendSignalToTelegram = async () => {
   logger.info("Starting signal-to-telegram task");
 
@@ -437,110 +558,7 @@ const sendSignalToTelegram = async () => {
     logger.info(`Processing ${recentSignals.length} recent signals in parallel`);
 
     // 各シグナルの処理を並列実行
-    const signalPromises = recentSignals.map(async (signalData) => {
-      try {
-        const holdingUsers = await getUsersHoldingToken(signalData.token);
-
-        if (holdingUsers.length === 0) {
-          logger.info(`No users holding token, skipping signal ${signalData.id}`);
-          return { signalId: signalData.id, skipped: true };
-        }
-
-        logger.info(`Sending signal ${signalData.id} to ${holdingUsers.length} users holding token`);
-
-        // Extract buttons from signal value or generate new ones
-        let buttons: { text: string; url: string }[] = [];
-
-        // Get token symbol for button generation (if buttons are empty, regenerate them)
-        if (buttons.length === 0) {
-          const tokenSymbol = await getTokenSymbol(signalData.token);
-          buttons = createPhantomButtons(signalData.token, tokenSymbol || undefined);
-        }
-
-        const result = await sendMessage(
-          holdingUsers.map((u) => u.userId),
-          escapeMarkdown(signalData.body),
-          {
-            parse_mode: "Markdown",
-            buttons,
-          },
-        );
-
-        if (!result.isOk()) {
-          logger.error(`Failed to send signal ${signalData.id} due to system error`, {
-            error: result.error,
-            signalId: signalData.id,
-            tokenAddress: signalData.token,
-          });
-          return {
-            signalId: signalData.id,
-            success: false,
-            systemError: true,
-            stats: null,
-          };
-        }
-
-        const stats = result.value;
-
-        // Check if any messages were successfully delivered
-        if (stats.successCount === 0) {
-          logger.error(`Signal ${signalData.id} failed to deliver to any users`, {
-            signalId: signalData.id,
-            tokenAddress: signalData.token,
-            totalUsers: stats.totalUsers,
-            failureCount: stats.failureCount,
-            failedUserIds: stats.failedUsers,
-            firstError: stats.results.find((r) => !r.success)?.error,
-          });
-          return {
-            signalId: signalData.id,
-            success: false,
-            systemError: false,
-            stats,
-          };
-        }
-
-        // Log success with detailed stats
-        logger.info(`Signal ${signalData.id} broadcast completed`, {
-          signalId: signalData.id,
-          tokenAddress: signalData.token,
-          totalUsers: stats.totalUsers,
-          successCount: stats.successCount,
-          failureCount: stats.failureCount,
-          successRate: stats.totalUsers > 0 ? `${((stats.successCount / stats.totalUsers) * 100).toFixed(1)}%` : "0%",
-        });
-
-        // Log partial failures if they exist
-        if (stats.failureCount > 0) {
-          logger.warn(`Signal ${signalData.id} had ${stats.failureCount} delivery failures`, {
-            signalId: signalData.id,
-            failedUserIds: stats.failedUsers,
-            sampleErrors: stats.results
-              .filter((r) => !r.success)
-              .slice(0, 3)
-              .map((r) => r.error),
-          });
-        }
-
-        return {
-          signalId: signalData.id,
-          success: true,
-          systemError: false,
-          stats,
-        };
-      } catch (error) {
-        logger.error(`Error processing signal ${signalData.id}:`, {
-          error: error instanceof Error ? error.message : String(error),
-          signalId: signalData.id,
-        });
-        return {
-          signalId: signalData.id,
-          success: false,
-          systemError: true,
-          stats: null,
-        };
-      }
-    });
+    const signalPromises = recentSignals.map(processSignalForTelegram);
 
     // 全ての処理を並列実行
     const results = await Promise.allSettled(signalPromises);
