@@ -1,53 +1,115 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { fetchDataSources } from "../../../src/agents/signal/nodes/data-fetch";
 
-// Mock the Tavily wrapper layer
-const mockSearchResults = {
+// Mock the enhanced fundamental search results
+const mockFundamentalResults = {
   allResults: [
     {
-      title: "SOL Price Surges 15% as Solana Network Sees Record Activity",
-      url: "https://cointelegraph.com/news/sol-price-surges-15-solana-network-record-activity",
+      title: "Solana Foundation Announces Major Partnership with Fortune 500 Company",
+      url: "https://coindesk.com/business/solana-foundation-partnership-fortune-500",
       content:
-        "Solana (SOL) price has surged 15% in the last 24 hours as the network experiences record-breaking activity. The bullish momentum is driven by increased adoption and positive market sentiment.",
+        "Solana Foundation has announced a groundbreaking partnership that will significantly expand enterprise adoption of the blockchain technology.",
       score: 0.95,
-      publishedDate: "2024-01-01",
+      publishedDate: "2024-01-15",
     },
     {
-      title: "Solana DeFi TVL Reaches All-Time High Despite Market Volatility",
-      url: "https://coinmarketcap.com/news/solana-defi-tvl-reaches-all-time-high",
+      title: "Solana Network Upgrade Improves Transaction Throughput by 40%",
+      url: "https://cointelegraph.com/news/solana-network-upgrade-improves-transaction-throughput",
       content:
-        "Despite recent market volatility, Solana's DeFi ecosystem continues to grow with TVL reaching new highs.",
+        "The latest Solana network upgrade has successfully increased transaction throughput, demonstrating the network's continued technological advancement.",
+      score: 0.92,
+      publishedDate: "2024-01-14",
+    },
+    {
+      title: "DeFi Protocol Built on Solana Reaches $1B TVL Milestone",
+      url: "https://decrypt.co/solana-defi-protocol-1b-tvl-milestone",
+      content:
+        "A major DeFi protocol on Solana has crossed the $1 billion Total Value Locked threshold, indicating strong ecosystem growth.",
       score: 0.88,
-      publishedDate: "2024-01-01",
+      publishedDate: "2024-01-13",
     },
   ],
   uniqueResults: [
     {
-      title: "SOL Price Surges 15% as Solana Network Sees Record Activity",
-      url: "https://cointelegraph.com/news/sol-price-surges-15-solana-network-record-activity",
+      title: "Solana Foundation Announces Major Partnership with Fortune 500 Company",
+      url: "https://coindesk.com/business/solana-foundation-partnership-fortune-500",
       content:
-        "Solana (SOL) price has surged 15% in the last 24 hours as the network experiences record-breaking activity. The bullish momentum is driven by increased adoption and positive market sentiment.",
+        "Solana Foundation has announced a groundbreaking partnership that will significantly expand enterprise adoption of the blockchain technology.",
       score: 0.95,
-      publishedDate: "2024-01-01",
+      publishedDate: "2024-01-15",
     },
     {
-      title: "Solana DeFi TVL Reaches All-Time High Despite Market Volatility",
-      url: "https://coinmarketcap.com/news/solana-defi-tvl-reaches-all-time-high",
+      title: "Solana Network Upgrade Improves Transaction Throughput by 40%",
+      url: "https://cointelegraph.com/news/solana-network-upgrade-improves-transaction-throughput",
       content:
-        "Despite recent market volatility, Solana's DeFi ecosystem continues to grow with TVL reaching new highs.",
+        "The latest Solana network upgrade has successfully increased transaction throughput, demonstrating the network's continued technological advancement.",
+      score: 0.92,
+      publishedDate: "2024-01-14",
+    },
+    {
+      title: "DeFi Protocol Built on Solana Reaches $1B TVL Milestone",
+      url: "https://decrypt.co/solana-defi-protocol-1b-tvl-milestone",
+      content:
+        "A major DeFi protocol on Solana has crossed the $1 billion Total Value Locked threshold, indicating strong ecosystem growth.",
       score: 0.88,
-      publishedDate: "2024-01-01",
+      publishedDate: "2024-01-13",
+    },
+  ],
+  responseCount: 3,
+};
+
+const mockBearishResults = {
+  allResults: [
+    {
+      title: "Solana Network Experiences Major Security Breach and Hack",
+      url: "https://coindesk.com/tech/solana-network-hack-security-breach",
+      content:
+        "The Solana blockchain network suffered a major security breach and hack exploit vulnerability, with millions lost to attackers. This security breach raises serious concerns about the network's safety.",
+      score: 0.9,
+      publishedDate: "2024-01-15",
+    },
+    {
+      title: "Regulatory Crackdown and Investigation into Solana Foundation",
+      url: "https://cointelegraph.com/news/regulatory-crackdown-solana-foundation",
+      content:
+        "Regulatory authorities have launched a major investigation lawsuit penalty into Solana Foundation following failed delayed postponed project launches and bear market conditions.",
+      score: 0.85,
+      publishedDate: "2024-01-14",
+    },
+  ],
+  uniqueResults: [
+    {
+      title: "Solana Network Experiences Major Security Breach and Hack",
+      url: "https://coindesk.com/tech/solana-network-hack-security-breach",
+      content:
+        "The Solana blockchain network suffered a major security breach and hack exploit vulnerability, with millions lost to attackers. This security breach raises serious concerns about the network's safety.",
+      score: 0.9,
+      publishedDate: "2024-01-15",
+    },
+    {
+      title: "Regulatory Crackdown and Investigation into Solana Foundation",
+      url: "https://cointelegraph.com/news/regulatory-crackdown-solana-foundation",
+      content:
+        "Regulatory authorities have launched a major investigation lawsuit penalty into Solana Foundation following failed delayed postponed project launches and bear market conditions.",
+      score: 0.85,
+      publishedDate: "2024-01-14",
     },
   ],
   responseCount: 2,
 };
 
-// Mock the entire tavily module
+const mockEmptyResults = {
+  allResults: [],
+  uniqueResults: [],
+  responseCount: 0,
+};
+
+// Mock the entire tavily module to use searchAggregated
 mock.module("../../../src/lib/tavily", () => ({
-  searchToken: mock(() => Promise.resolve(mockSearchResults)),
+  searchAggregated: mock(() => Promise.resolve(mockFundamentalResults)),
 }));
 
-describe("Tavily SDK Data Fetch with @tavily/core", () => {
+describe("Enhanced Fundamental Data Fetch", () => {
   let mockState: any;
 
   beforeEach(async () => {
@@ -58,118 +120,119 @@ describe("Tavily SDK Data Fetch with @tavily/core", () => {
     };
 
     // Reset mocks
-    const { searchToken } = await import("../../../src/lib/tavily");
-    (searchToken as any).mockClear();
-    (searchToken as any).mockResolvedValue(mockSearchResults);
+    const { searchAggregated } = await import("../../../src/lib/tavily");
+    (searchAggregated as any).mockClear();
+    (searchAggregated as any).mockResolvedValue(mockFundamentalResults);
   });
 
   describe("Basic Functionality", () => {
-    test("should successfully fetch and process token data using wrapper", async () => {
+    test("should successfully fetch and process fundamental data", async () => {
       const result = await fetchDataSources(mockState);
 
       expect(result.evidenceResults).toBeDefined();
-      expect(result.evidenceResults?.relevantSources).toHaveLength(2);
-      expect(result.evidenceResults?.totalResults).toBe(2);
-      expect(result.evidenceResults?.searchStrategy).toBe("BASIC");
-      expect(result.evidenceResults?.qualityScore).toBeGreaterThan(0);
+      expect(result.evidenceResults?.relevantSources).toHaveLength(3);
+      expect(result.evidenceResults?.totalResults).toBe(3);
+      expect(result.evidenceResults?.searchStrategy).toBe("FUNDAMENTAL");
+      expect(result.evidenceResults?.qualityScore).toBeGreaterThan(0.5);
     });
 
-    test("should use wrapper searchToken function with correct parameters", async () => {
-      const { searchToken } = await import("../../../src/lib/tavily");
+    test("should use searchAggregated with fundamental queries", async () => {
+      const { searchAggregated } = await import("../../../src/lib/tavily");
 
       await fetchDataSources(mockState);
 
-      expect(searchToken).toHaveBeenCalledWith("SOL", {
-        searchDepth: "basic",
-        maxResults: 3,
+      expect(searchAggregated).toHaveBeenCalledWith({
+        queries: expect.arrayContaining([
+          expect.stringContaining("SOL token fundamentals utility roadmap team"),
+          expect.stringContaining("SOL crypto ecosystem partnerships adoption"),
+          expect.stringContaining("SOL blockchain technology use case real world"),
+          expect.stringContaining("SOL tokenomics supply demand economics"),
+          expect.stringContaining("SOL developer activity community governance"),
+        ]),
+        searchDepth: "advanced",
+        maxResults: 20,
+        deduplicateResults: true,
       });
     });
 
-    test("should handle unavailable Tavily client gracefully", async () => {
-      const { searchToken } = await import("../../../src/lib/tavily");
-      (searchToken as any).mockRejectedValue(new Error("Tavily client not available - API key not configured"));
+    test("should handle empty search results gracefully", async () => {
+      const { searchAggregated } = await import("../../../src/lib/tavily");
+      (searchAggregated as any).mockResolvedValueOnce(mockEmptyResults);
 
       const result = await fetchDataSources(mockState);
 
       expect(result.evidenceResults).toBeDefined();
       expect(result.evidenceResults?.relevantSources).toHaveLength(0);
-      expect(result.evidenceResults?.searchStrategy).toBe("SKIP");
-      expect(result.evidenceResults?.primaryCause).toBe("Tavily API key not configured");
+      expect(result.evidenceResults?.searchStrategy).toBe("FUNDAMENTAL");
+      expect(result.evidenceResults?.marketSentiment).toBe("NEUTRAL");
+      expect(result.evidenceResults?.primaryCause).toContain("No fundamental sources found");
     });
   });
 
   describe("Market Sentiment Analysis", () => {
-    test("should correctly identify bullish sentiment from wrapper results", async () => {
+    test("should correctly identify bullish sentiment from fundamental sources", async () => {
       const result = await fetchDataSources(mockState);
 
       expect(result.evidenceResults?.marketSentiment).toBe("BULLISH");
-      expect(result.evidenceResults?.newsCategory).toBe("BULLISH");
+      expect(result.evidenceResults?.qualityScore).toBeGreaterThan(0.6);
     });
 
     test("should correctly identify bearish sentiment", async () => {
-      const bearishResults = {
-        ...mockSearchResults,
-        allResults: [
-          {
-            title: "SOL Price Crashes 30% as Market Dumps Hard",
-            url: "https://example.com/bearish-news",
-            content: "SOL price has crashed dump dump crash bearish bearish sell sell decline fall risk concern",
-            score: 0.9,
-            publishedDate: "2024-01-01",
-          },
-        ],
-        uniqueResults: [
-          {
-            title: "SOL Price Crashes 30% as Market Dumps Hard",
-            url: "https://example.com/bearish-news",
-            content: "SOL price has crashed dump dump crash bearish bearish sell sell decline fall risk concern",
-            score: 0.9,
-            publishedDate: "2024-01-01",
-          },
-        ],
-      };
-
-      const { searchToken } = await import("../../../src/lib/tavily");
-      (searchToken as any).mockResolvedValueOnce(bearishResults);
+      const { searchAggregated } = await import("../../../src/lib/tavily");
+      (searchAggregated as any).mockResolvedValueOnce(mockBearishResults);
 
       const result = await fetchDataSources(mockState);
 
       expect(result.evidenceResults?.marketSentiment).toBe("BEARISH");
-      expect(result.evidenceResults?.newsCategory).toBe("BEARISH");
+      expect(result.evidenceResults?.qualityScore).toBeGreaterThan(0.5);
+    });
+
+    test("should default to neutral sentiment for balanced or unclear signals", async () => {
+      const { searchAggregated } = await import("../../../src/lib/tavily");
+      (searchAggregated as any).mockResolvedValueOnce(mockEmptyResults);
+
+      const result = await fetchDataSources(mockState);
+
+      expect(result.evidenceResults?.marketSentiment).toBe("NEUTRAL");
     });
   });
 
-  describe("Search Results Processing", () => {
-    test("should handle no search results", async () => {
-      const emptyResults = {
-        allResults: [],
-        uniqueResults: [],
-        responseCount: 0,
-      };
-
-      const { searchToken } = await import("../../../src/lib/tavily");
-      (searchToken as any).mockResolvedValueOnce(emptyResults);
-
+  describe("Source Quality Analysis", () => {
+    test("should calculate quality score based on domain reputation", async () => {
       const result = await fetchDataSources(mockState);
 
-      expect(result.evidenceResults?.searchStrategy).toBe("BASIC");
-      expect(result.evidenceResults?.relevantSources).toHaveLength(0);
-      expect(result.evidenceResults?.primaryCause).toBe("No relevant sources found");
+      // Should have high quality score due to high-reputation domains
+      expect(result.evidenceResults?.qualityScore).toBeGreaterThan(0.7);
+      expect(result.evidenceResults?.relevantSources).toHaveLength(3);
     });
 
-    test("should calculate quality score correctly", async () => {
+    test("should convert search results to proper evidence format", async () => {
       const result = await fetchDataSources(mockState);
 
-      expect(result.evidenceResults?.qualityScore).toBeDefined();
-      expect(result.evidenceResults?.qualityScore).toBeGreaterThan(0);
-      expect(result.evidenceResults?.qualityScore).toBeLessThanOrEqual(1);
+      expect(result.evidenceResults?.relevantSources[0]).toMatchObject({
+        title: expect.stringContaining("Solana Foundation"),
+        url: expect.stringContaining("coindesk.com"),
+        content: expect.stringContaining("partnership"),
+        score: expect.any(Number),
+        domain: expect.stringContaining("coindesk.com"),
+        publishedDate: expect.any(String),
+      });
+    });
+
+    test("should compute domain from URL correctly", async () => {
+      const result = await fetchDataSources(mockState);
+
+      const domains = result.evidenceResults?.relevantSources.map((source) => source.domain);
+      expect(domains).toContain("coindesk.com");
+      expect(domains).toContain("cointelegraph.com");
+      expect(domains).toContain("decrypt.co");
     });
   });
 
   describe("Error Handling", () => {
-    test("should handle wrapper search errors gracefully", async () => {
-      const { searchToken } = await import("../../../src/lib/tavily");
-      (searchToken as any).mockRejectedValue(new Error("Wrapper search failed"));
+    test("should handle search errors gracefully", async () => {
+      const { searchAggregated } = await import("../../../src/lib/tavily");
+      (searchAggregated as any).mockRejectedValue(new Error("API timeout"));
 
       const result = await fetchDataSources(mockState);
 
@@ -178,54 +241,65 @@ describe("Tavily SDK Data Fetch with @tavily/core", () => {
       expect(result.evidenceResults?.primaryCause).toContain("Search failed");
     });
 
-    test("should handle API key error specifically", async () => {
-      const { searchToken } = await import("../../../src/lib/tavily");
-      (searchToken as any).mockRejectedValue(new Error("Tavily client not available - API key not configured"));
+    test("should handle API key errors specifically", async () => {
+      const { searchAggregated } = await import("../../../src/lib/tavily");
+      (searchAggregated as any).mockRejectedValue(new Error("API key not configured"));
 
       const result = await fetchDataSources(mockState);
 
-      expect(result.evidenceResults?.searchStrategy).toBe("SKIP");
+      expect(result.evidenceResults).toBeDefined();
       expect(result.evidenceResults?.primaryCause).toBe("Tavily API key not configured");
+      expect(result.evidenceResults?.relevantSources).toHaveLength(0);
     });
   });
 
-  describe("Source Data Format", () => {
-    test("should convert Tavily results to expected format", async () => {
-      const result = await fetchDataSources(mockState);
+  describe("Fundamental Analysis Features", () => {
+    test("should include fundamental search queries", async () => {
+      const { searchAggregated } = await import("../../../src/lib/tavily");
 
-      expect(result.evidenceResults?.relevantSources).toBeDefined();
-      expect(result.evidenceResults?.relevantSources[0]).toMatchObject({
-        title: expect.any(String),
-        url: expect.any(String),
-        content: expect.any(String),
-        score: expect.any(Number),
-        domain: expect.any(String),
-        publishedDate: expect.any(String),
-      });
+      await fetchDataSources(mockState);
+
+      const calledWith = (searchAggregated as any).mock.calls[0][0];
+      const queries = calledWith.queries;
+
+      expect(queries).toContain("SOL token fundamentals utility roadmap team");
+      expect(queries).toContain("SOL crypto ecosystem partnerships adoption");
+      expect(queries).toContain("SOL blockchain technology use case real world");
+      expect(queries).toContain("SOL tokenomics supply demand economics");
+      expect(queries).toContain("SOL developer activity community governance");
     });
 
-    test("should compute domain from URL", async () => {
-      const resultsWithoutDomain = {
-        ...mockSearchResults,
-        uniqueResults: [
-          {
-            title: "Test Article",
-            url: "https://example.com/test",
-            content: "Test content",
-            score: 0.9,
-            publishedDate: "2024-01-01",
-          },
-        ],
-      };
+    test("should include contract-specific queries when token address provided", async () => {
+      const { searchAggregated } = await import("../../../src/lib/tavily");
 
-      const { searchToken } = await import("../../../src/lib/tavily");
-      (searchToken as any).mockResolvedValueOnce(resultsWithoutDomain);
+      await fetchDataSources(mockState);
 
+      const calledWith = (searchAggregated as any).mock.calls[0][0];
+      const queries = calledWith.queries;
+
+      expect(queries.some((q: string) => q.includes("So11111111111111111111111111111111111111112"))).toBe(true);
+      expect(queries.some((q: string) => q.includes("contract analysis security audit"))).toBe(true);
+      expect(queries.some((q: string) => q.includes("on-chain metrics holder distribution"))).toBe(true);
+    });
+
+    test("should use advanced search depth for better quality", async () => {
+      const { searchAggregated } = await import("../../../src/lib/tavily");
+
+      await fetchDataSources(mockState);
+
+      const calledWith = (searchAggregated as any).mock.calls[0][0];
+      expect(calledWith.searchDepth).toBe("advanced");
+      expect(calledWith.maxResults).toBe(20);
+      expect(calledWith.deduplicateResults).toBe(true);
+    });
+
+    test("should track search performance metrics", async () => {
       const result = await fetchDataSources(mockState);
 
-      expect(result.evidenceResults?.relevantSources).toBeDefined();
-      expect(result.evidenceResults?.relevantSources).toHaveLength(1);
-      expect(result.evidenceResults?.relevantSources[0]?.domain).toBe("example.com");
+      expect(result.evidenceResults?.searchTime).toBeGreaterThanOrEqual(0);
+      expect(result.evidenceResults?.totalResults).toBe(3);
+      expect(result.evidenceResults?.searchQueries).toBeDefined();
+      expect(result.evidenceResults?.searchQueries.length).toBeGreaterThan(5);
     });
   });
 });
