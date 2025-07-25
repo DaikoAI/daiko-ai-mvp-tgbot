@@ -1,19 +1,11 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { initSignalGraph } from "../../../src/agents/signal/graph";
 import type { SignalGraphState } from "../../../src/agents/signal/graph-state";
 import { createSimpleSignalResponse } from "../../../src/agents/signal/nodes/signal-formatter";
 import type { TechnicalAnalysis } from "../../../src/db/schema/technical-analysis";
 import { createPhantomButtons } from "../../../src/lib/phantom";
 
-// Simple mock for backtesting to prevent database calls
-mock.module("../../../src/lib/backtesting", () => ({
-  BacktestEngine: class MockBacktestEngine {
-    constructor() {}
-    async analyzeSignalType() {
-      return null; // Simulate no backtest data available
-    }
-  },
-}));
+// Use real backtesting modules for meaningful tests
 
 const createMockAnalysis = (overrides: Partial<TechnicalAnalysis> = {}): TechnicalAnalysis => ({
   id: "test-1",

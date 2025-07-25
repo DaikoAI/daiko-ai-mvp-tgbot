@@ -96,6 +96,11 @@ export class BacktestEngine {
    * Quick analysis for specific signal type and timeframe
    */
   async analyzeSignalType(signalType: string, direction: "BUY" | "SELL" | "NEUTRAL", timeframe: "1h" | "4h" | "24h") {
+    // Validate timeframe is in config
+    if (!this.config.timeframes.includes(timeframe)) {
+      throw new Error(`Invalid timeframe: ${timeframe}. Must be one of: ${this.config.timeframes.join(", ")}`);
+    }
+
     const signalResults = await collectSignalPerformanceData(this.config);
     const filteredSignals = signalResults.filter((s) => s.signalType === signalType && s.direction === direction);
 
@@ -136,14 +141,14 @@ export class BacktestEngine {
    * Calculate overall metrics for all timeframes
    */
   private calculateOverallMetrics(signalResults: SignalResult[]) {
-    const overallMetrics: BacktestReport["overallMetrics"] = {} as any;
+    const overallMetrics: Partial<BacktestReport["overallMetrics"]> = {};
 
     for (const timeframe of this.config.timeframes) {
       const timeframeSignals = filterSignalsByTimeframe(signalResults, timeframe);
       overallMetrics[timeframe] = calculateBacktestMetrics(timeframeSignals, timeframe);
     }
 
-    return overallMetrics;
+    return overallMetrics as BacktestReport["overallMetrics"];
   }
 
   /**
