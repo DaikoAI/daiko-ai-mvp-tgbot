@@ -103,7 +103,7 @@ const buildMockState = (overrides: Partial<SignalGraphState> = {}): SignalGraphS
     totalResults: 2,
     searchTime: 1500,
     qualityScore: 0.85,
-    searchStrategy: "FUNDAMENTAL",
+    searchStrategy: "RSS_NEWS",
   },
   finalSignal: {
     level: 1,

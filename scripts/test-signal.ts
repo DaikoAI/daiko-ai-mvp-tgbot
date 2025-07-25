@@ -43,8 +43,8 @@ async function testSignalWithDataFetch() {
       priority: result.finalSignal?.priority,
       hasEvidenceResults: !!result.evidenceResults,
       evidenceSourcesCount: result.evidenceResults?.relevantSources?.length || 0,
-      evidenceConfidence: result.evidenceResults?.overallConfidence,
-      evidenceRecommendation: result.evidenceResults?.recommendation,
+      evidenceQualityScore: result.evidenceResults?.qualityScore,
+      evidenceSearchStrategy: result.evidenceResults?.searchStrategy,
     });
 
     // Print the final message to see information sources

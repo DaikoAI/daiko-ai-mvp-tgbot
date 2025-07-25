@@ -57,7 +57,7 @@ export const dataFetchRouter = (state: SignalGraphState): "llm_analysis" | typeo
   }
 
   // searchStrategyに基づいてLLM分析の実行を決定
-  if (state.evidenceResults.searchStrategy === "BASIC" || state.evidenceResults.searchStrategy === "FAILED") {
+  if (state.evidenceResults.searchStrategy === "FUNDAMENTAL_SEARCH" || state.evidenceResults.searchStrategy === "FAILED") {
     return "llm_analysis";
   }
 

@@ -44,7 +44,7 @@ const sendToSingleUser = async (
         }
 
         // Start new row after every 2 buttons
-        if (index % 2 === 1 && index < options.buttons?.length - 1) {
+        if (index % 2 === 1 && options.buttons && index < options.buttons.length - 1) {
           keyboard.row();
         }
       });
@@ -119,7 +119,7 @@ const processBatch = async (
   const results = await Promise.allSettled(promises);
 
   return results.map((result, index) => {
-    const userId = userIds[index];
+    const userId = userIds[index] || "unknown";
 
     if (result.status === "fulfilled" && result.value.isOk()) {
       const success = result.value.value;
@@ -205,6 +205,11 @@ export const sendMessage = async (
     // Process batches sequentially with parallel processing within each batch
     for (let i = 0; i < batches.length; i++) {
       const batch = batches[i];
+
+      if (!batch) {
+        logger.warn(`Batch ${i + 1} is undefined, skipping`);
+        continue;
+      }
 
       logger.info(`Processing batch ${i + 1}/${batches.length} (${batch.length} users)`);
 

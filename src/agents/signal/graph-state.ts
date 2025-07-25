@@ -72,7 +72,7 @@ export const signalGraphState = Annotation.Root({
     totalResults: number;
     searchTime: number;
     qualityScore: number;
-    searchStrategy: "FUNDAMENTAL" | "SKIP" | "FAILED";
+    searchStrategy: "BASIC" | "ADVANCED" | "SKIP" | "FAILED" | "RSS_NEWS" | "FUNDAMENTAL_SEARCH";
   }>({
     reducer: (x, y) => y ?? x,
   }),

@@ -35,7 +35,7 @@ export interface EvidenceResults {
   searchTime: number;
   marketSentiment: "BULLISH" | "BEARISH" | "NEUTRAL";
   primaryCause: string | null;
-  searchStrategy: "BASIC" | "ADVANCED" | "SKIP" | "FAILED";
+  searchStrategy: "BASIC" | "ADVANCED" | "SKIP" | "FAILED" | "RSS_NEWS" | "FUNDAMENTAL_SEARCH";
   qualityScore: number;
   newsCategory: "BULLISH" | "BEARISH" | "NEUTRAL";
 }
