@@ -1,4 +1,4 @@
-import { searchToken } from "../../../lib/tavily";
+import { searchAggregated } from "../../../lib/tavily";
 import type { TavilySearchResult } from "../../../types/tavily";
 import { logger } from "../../../utils/logger";
 import type { SignalGraphState } from "../graph-state";
@@ -8,6 +8,169 @@ const MAX_SEARCH_DURATION_MS = 30000; // 30 seconds
 
 // Constants for sentiment analysis
 const SENTIMENT_THRESHOLD_MULTIPLIER = 1.2; // Threshold multiplier for determining bullish/bearish sentiment
+
+// High-quality domains for fundamental analysis
+const FUNDAMENTAL_DOMAINS = [
+  "cryptoslate.com",
+  "decrypt.co",
+  "theblock.co",
+  "coindesk.com",
+  "cointelegraph.com",
+  "blockworks.co",
+  "messari.io",
+  "defipulse.com",
+  "dappradar.com",
+  "bankless.com",
+  "chainanalysis.com",
+  "nansen.ai",
+  "glassnode.com",
+  "x.com",
+  "twitter.com",
+  "reddit.com",
+  "medium.com",
+  "substack.com",
+];
+
+// Low-quality domains to exclude
+const EXCLUDED_DOMAINS = [
+  "coinmarketcap.com",
+  "coingecko.com",
+  "dexscreener.com",
+  "dextools.io",
+  "tradingview.com",
+  "investing.com",
+  "yahoo.com",
+  "marketwatch.com",
+];
+
+/**
+ * Create enhanced search queries for fundamental analysis
+ */
+const createFundamentalQueries = (tokenSymbol: string, tokenAddress?: string) => {
+  const baseQueries = [
+    // Fundamental analysis focused queries
+    `${tokenSymbol} token fundamentals utility roadmap team`,
+    `${tokenSymbol} crypto ecosystem partnerships adoption`,
+    `${tokenSymbol} blockchain technology use case real world`,
+    `${tokenSymbol} tokenomics supply demand economics`,
+    `${tokenSymbol} developer activity community governance`,
+  ];
+
+  // Add address-specific queries if available
+  if (tokenAddress) {
+    baseQueries.push(
+      `${tokenAddress} token contract analysis security audit`,
+      `${tokenSymbol} ${tokenAddress} on-chain metrics holder distribution`,
+    );
+  }
+
+  return baseQueries;
+};
+
+/**
+ * Enhanced sentiment analysis with fundamental factors
+ */
+const analyzeFundamentalSentiment = (sources: Array<{ title: string; content: string; domain: string }>) => {
+  const fundamentalKeywords = {
+    bullish: [
+      // Technology & Innovation
+      "breakthrough",
+      "innovation",
+      "revolutionary",
+      "upgrade",
+      "improvement",
+      // Adoption & Partnerships
+      "partnership",
+      "adoption",
+      "integration",
+      "collaboration",
+      "enterprise",
+      // Community & Development
+      "community growth",
+      "developer activity",
+      "ecosystem",
+      "mainnet",
+      "launch",
+      // Regulatory & Institutional
+      "institutional",
+      "regulation clarity",
+      "compliance",
+      "approval",
+      "etf",
+      // Utility & Use Cases
+      "real world utility",
+      "use case",
+      "problem solving",
+      "efficiency",
+      "scalability",
+    ],
+    bearish: [
+      // Security & Technical Issues
+      "hack",
+      "exploit",
+      "vulnerability",
+      "bug",
+      "security breach",
+      // Regulatory Issues
+      "regulatory crackdown",
+      "ban",
+      "investigation",
+      "lawsuit",
+      "penalty",
+      // Market Issues
+      "sell-off",
+      "liquidation",
+      "bear market",
+      "recession",
+      "inflation",
+      // Project Issues
+      "delayed",
+      "postponed",
+      "failed",
+      "exit scam",
+      "rug pull",
+      "abandoned",
+    ],
+  };
+
+  let bullishScore = 0;
+  let bearishScore = 0;
+  const fundamentalFactors: string[] = [];
+
+  sources.forEach((source) => {
+    const text = `${source.title} ${source.content}`.toLowerCase();
+
+    // Weight high-quality domains more heavily
+    const domainWeight = FUNDAMENTAL_DOMAINS.includes(source.domain) ? 2 : 1;
+
+    fundamentalKeywords.bullish.forEach((keyword) => {
+      if (text.includes(keyword)) {
+        bullishScore += domainWeight;
+        if (!fundamentalFactors.includes(keyword)) {
+          fundamentalFactors.push(keyword);
+        }
+      }
+    });
+
+    fundamentalKeywords.bearish.forEach((keyword) => {
+      if (text.includes(keyword)) {
+        bearishScore += domainWeight;
+        if (!fundamentalFactors.includes(keyword)) {
+          fundamentalFactors.push(keyword);
+        }
+      }
+    });
+  });
+
+  const sentiment =
+    bullishScore > bearishScore * SENTIMENT_THRESHOLD_MULTIPLIER
+      ? "BULLISH"
+      : bearishScore > bullishScore * SENTIMENT_THRESHOLD_MULTIPLIER
+        ? "BEARISH"
+        : "NEUTRAL";
+
+  return { sentiment, fundamentalFactors, bullishScore, bearishScore };
+};
 
 /**
  * Convert TavilySearchResult to the expected format for evidenceResults
@@ -24,106 +187,121 @@ const convertToEvidenceFormat = (results: TavilySearchResult[]) => {
 };
 
 /**
- * Enhanced Data Fetch Node using Tavily SDK wrapper
+ * Enhanced Data Fetch Node using Tavily SDK wrapper with fundamental analysis focus
  */
 export const fetchDataSources = async (state: SignalGraphState) => {
   const { tokenSymbol, tokenAddress } = state;
   const startTime = Date.now();
 
-  logger.info("Starting enhanced data fetch with Tavily wrapper", {
+  logger.info("Starting enhanced fundamental data fetch", {
     tokenSymbol,
     tokenAddress,
     maxDuration: MAX_SEARCH_DURATION_MS,
+    fundamentalDomains: FUNDAMENTAL_DOMAINS.length,
+    excludedDomains: EXCLUDED_DOMAINS.length,
   });
 
   try {
-    // Execute enhanced token search with current context
-    const searchResult = await searchToken(tokenSymbol, {
-      searchDepth: "basic",
-      maxResults: 3,
+    // Create enhanced fundamental analysis queries
+    const fundamentalQueries = createFundamentalQueries(tokenSymbol, tokenAddress);
+
+    // Execute enhanced search with domain filtering
+    const searchResult = await searchAggregated({
+      queries: fundamentalQueries,
+      searchDepth: "advanced", // Use advanced search for better quality
+      maxResults: 20, // 2 results per query for more diverse sources
+      deduplicateResults: true,
     });
 
     const searchDuration = Date.now() - startTime;
 
     if (!searchResult || !searchResult.uniqueResults || searchResult.uniqueResults.length === 0) {
-      logger.warn("No search results returned", {
+      logger.warn("No fundamental search results returned", {
         tokenSymbol,
         tokenAddress,
         searchDuration,
+        queriesUsed: fundamentalQueries.length,
         responseCount: searchResult?.responseCount || 0,
       });
 
       return {
         evidenceResults: {
           relevantSources: [],
-          searchQueries: [],
+          searchQueries: fundamentalQueries,
           totalResults: 0,
           searchTime: searchDuration,
           marketSentiment: "NEUTRAL" as const,
-          primaryCause: "No relevant sources found",
-          searchStrategy: "BASIC" as const,
+          primaryCause: "No fundamental sources found",
+          searchStrategy: "FUNDAMENTAL" as const,
           qualityScore: 0.1,
           newsCategory: "NEUTRAL" as const,
         },
       };
     }
 
-    // Process and convert results
-    const relevantSources = convertToEvidenceFormat(searchResult.uniqueResults);
+    // Process and convert results with quality filtering
+    const allSources = convertToEvidenceFormat(searchResult.uniqueResults);
 
-    // Basic sentiment analysis based on content
-    const sentimentKeywords = {
-      bullish: ["bullish", "moon", "pump", "rocket", "green", "up", "rise", "gain", "profit", "buy"],
-      bearish: ["bearish", "crash", "dump", "red", "down", "fall", "loss", "sell", "decline"],
-    };
+    // Filter out excluded domains and prioritize fundamental domains
+    const qualitySources = allSources
+      .filter((source) => !EXCLUDED_DOMAINS.includes(source.domain))
+      .sort((a, b) => {
+        const aIsFundamental = FUNDAMENTAL_DOMAINS.includes(a.domain);
+        const bIsFundamental = FUNDAMENTAL_DOMAINS.includes(b.domain);
 
-    let bullishCount = 0;
-    let bearishCount = 0;
+        if (aIsFundamental && !bIsFundamental) return -1;
+        if (!aIsFundamental && bIsFundamental) return 1;
+        return b.score - a.score; // Sort by score if both are same tier
+      })
+      .slice(0, 5); // Limit to top 5 quality sources
 
-    relevantSources.forEach((source) => {
-      const content = source.content.toLowerCase();
-      bullishCount += sentimentKeywords.bullish.filter((word) => content.includes(word)).length;
-      bearishCount += sentimentKeywords.bearish.filter((word) => content.includes(word)).length;
-    });
+    // Enhanced fundamental sentiment analysis
+    const sentimentAnalysis = analyzeFundamentalSentiment(qualitySources);
 
-    const marketSentiment =
-      bullishCount > bearishCount * SENTIMENT_THRESHOLD_MULTIPLIER ? "BULLISH" : bearishCount > bullishCount * SENTIMENT_THRESHOLD_MULTIPLIER ? "BEARISH" : "NEUTRAL";
+    // Calculate quality score based on source quality and relevance
+    const fundamentalSourceCount = qualitySources.filter((s) => FUNDAMENTAL_DOMAINS.includes(s.domain)).length;
 
-    // Calculate quality score based on relevance and recency
-    // Calculate quality score based on relevance and recency
-    const avgScore = relevantSources.length > 0
-      ? relevantSources.reduce((sum, source) => sum + source.score, 0) / relevantSources.length
-      : 0;
-    const qualityScore = Math.min(avgScore * (relevantSources.length / 3), 1);
+    const avgScore =
+      qualitySources.length > 0
+        ? qualitySources.reduce((sum, source) => sum + source.score, 0) / qualitySources.length
+        : 0;
 
-    logger.info("Data fetch completed successfully", {
+    const qualityScore = Math.min(avgScore * 0.7 + (fundamentalSourceCount / qualitySources.length) * 0.3, 1);
+
+    logger.info("Fundamental data fetch completed", {
       tokenSymbol,
       tokenAddress,
-      resultsCount: relevantSources.length,
+      totalSources: allSources.length,
+      qualitySources: qualitySources.length,
+      fundamentalSources: fundamentalSourceCount,
       searchDuration,
-      marketSentiment,
+      marketSentiment: sentimentAnalysis.sentiment,
+      fundamentalFactors: sentimentAnalysis.fundamentalFactors.slice(0, 3),
       qualityScore: qualityScore.toFixed(2),
       responseCount: searchResult.responseCount,
     });
 
     return {
       evidenceResults: {
-        relevantSources,
-        searchQueries: [],
+        relevantSources: qualitySources,
+        searchQueries: fundamentalQueries,
         totalResults: searchResult.allResults.length,
         searchTime: searchDuration,
-        marketSentiment,
-        primaryCause: null,
-        searchStrategy: "BASIC" as const,
+        marketSentiment: sentimentAnalysis.sentiment,
+        primaryCause:
+          sentimentAnalysis.fundamentalFactors.length > 0
+            ? `Key factors: ${sentimentAnalysis.fundamentalFactors.slice(0, 3).join(", ")}`
+            : null,
+        searchStrategy: "FUNDAMENTAL" as const,
         qualityScore,
-        newsCategory: marketSentiment as "BULLISH" | "BEARISH" | "NEUTRAL",
+        newsCategory: sentimentAnalysis.sentiment as "BULLISH" | "BEARISH" | "NEUTRAL",
       },
     };
   } catch (error) {
     const searchDuration = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    logger.error("Data fetch failed", {
+    logger.error("Fundamental data fetch failed", {
       tokenSymbol,
       tokenAddress,
       error: errorMessage,

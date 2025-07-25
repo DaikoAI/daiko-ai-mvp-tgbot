@@ -22,6 +22,111 @@ const TIMEFRAME_CONFIG = {
 } as const;
 
 /**
+ * Create sophisticated market snapshot combining technical analysis and fundamental data
+ */
+const createMarketSnapshot = (state: SignalGraphState): string => {
+  const { signalDecision, technicalAnalysis, evidenceResults } = state;
+
+  if (!signalDecision) {
+    return "Market conditions are currently within normal parameters with no significant directional bias.";
+  }
+
+  // Analyze technical context
+  const analyzer = new TechnicalIndicatorAnalyzer(technicalAnalysis);
+  const bulletPoints = analyzer.getBulletPoints();
+
+  // Extract key insights from technical analysis
+  const keyIndicators = {
+    momentum: bulletPoints.some(
+      (point) =>
+        point.includes("oversold") ||
+        point.includes("overbought") ||
+        point.includes("momentum") ||
+        point.includes("RSI"),
+    ),
+    volatility: bulletPoints.some(
+      (point) =>
+        point.includes("volatility") ||
+        point.includes("ATR") ||
+        point.includes("high volatility") ||
+        point.includes("low volatility"),
+    ),
+    trend: bulletPoints.some(
+      (point) =>
+        point.includes("trend") || point.includes("ADX") || point.includes("breakout") || point.includes("direction"),
+    ),
+  };
+
+  // Extract fundamental context from data sources
+  const fundamentalContext = evidenceResults?.primaryCause
+    ? evidenceResults.primaryCause.replace("Key factors: ", "")
+    : null;
+
+  const marketSentiment = evidenceResults?.marketSentiment || "NEUTRAL";
+  const qualityScore = evidenceResults?.qualityScore || 0;
+
+  // Create narrative based on signal strength and context
+  let narrative = "";
+
+  if (signalDecision.confidence >= 0.8) {
+    // High confidence signals - strong narrative
+    narrative =
+      signalDecision.direction === "BUY"
+        ? "Strong accumulation opportunity identified. Multiple technical indicators align with supportive market conditions."
+        : "Significant distribution pressure detected. Technical patterns suggest cautious positioning.";
+  } else if (signalDecision.confidence >= 0.6) {
+    // Medium confidence - balanced narrative
+    narrative =
+      signalDecision.direction === "BUY"
+        ? "Moderate buying opportunity emerging. Technical setup shows potential but requires careful timing."
+        : "Mixed signals present. Market structure suggests reduced risk exposure may be prudent.";
+  } else {
+    // Lower confidence - cautious narrative
+    narrative = "Market showing transitional behavior. Current technical setup warrants watchful monitoring.";
+  }
+
+  // Add technical context
+  if (keyIndicators.momentum) {
+    if (signalDecision.direction === "BUY") {
+      narrative += ` Price momentum is building from oversold levels, suggesting potential reversal dynamics.`;
+    } else {
+      narrative += ` Momentum indicators signal weakening buying pressure and potential trend exhaustion.`;
+    }
+  }
+
+  if (keyIndicators.volatility) {
+    if (signalDecision.riskLevel === "HIGH") {
+      narrative += ` Elevated volatility suggests larger position sizing caution.`;
+    } else {
+      narrative += ` Volatility remains manageable for standard position allocation.`;
+    }
+  }
+
+  // Integrate fundamental context if available and high quality
+  if (fundamentalContext && qualityScore > 0.5) {
+    const sentiment =
+      marketSentiment === "BULLISH" ? "supportive" : marketSentiment === "BEARISH" ? "concerning" : "neutral";
+    narrative += ` Market narratives around ${fundamentalContext.toLowerCase()} appear ${sentiment} for this positioning.`;
+  }
+
+  // Add market structure insight
+  if (technicalAnalysis) {
+    const rsi = parseFloat(technicalAnalysis.rsi || "50");
+    const vwapDev = parseFloat(technicalAnalysis.vwap_deviation || "0");
+
+    if (Math.abs(vwapDev) > 3) {
+      narrative += ` Current price sits ${vwapDev > 0 ? "significantly above" : "well below"} institutional activity levels.`;
+    } else if (rsi < 30) {
+      narrative += ` Asset appears oversold relative to recent trading ranges.`;
+    } else if (rsi > 70) {
+      narrative += ` Asset shows overbought characteristics requiring careful exit planning.`;
+    }
+  }
+
+  return narrative;
+};
+
+/**
  * Creates a simple signal response with modern formatting
  */
 export const createSimpleSignalResponse = (state: SignalGraphState) => {
@@ -61,13 +166,21 @@ export const createSimpleSignalResponse = (state: SignalGraphState) => {
 
   // Build information sources section if available with enhanced metadata
   let sourcesSection = "";
-  if (state.evidenceResults?.relevantSources && state.evidenceResults.relevantSources.length > 0) {
+  if (state.evidenceResults?.relevantSources?.length > 0) {
     const sources = state.evidenceResults.relevantSources.slice(0, 3); // Limit to 3 sources
     const sourceLinks = sources
       .map((source, index) => {
         if (source?.url && source?.title) {
-          const title = source.title.slice(0, 50); // Truncate long titles
-          const domain = source.domain || new URL(source.url).hostname;
+          const title = (source.title || "").slice(0, 50); // Truncate long titles
+          const domain =
+            source.domain ||
+            (() => {
+              try {
+                return new URL(source.url).hostname;
+              } catch {
+                return "unknown";
+              }
+            })();
           return `${index + 1}. [${title}](${source.url}) (${domain})`;
         }
         return null;
@@ -76,7 +189,7 @@ export const createSimpleSignalResponse = (state: SignalGraphState) => {
       .join("\n");
 
     // Add market sentiment and search metadata
-    const { marketSentiment, searchTime, totalResults } = state.evidenceResults;
+    const { marketSentiment = "NEUTRAL", searchTime = 0, totalResults = 0 } = state.evidenceResults || {};
     const sentimentEmoji = marketSentiment === "BULLISH" ? "📈" : marketSentiment === "BEARISH" ? "📉" : "⚖️";
 
     if (sourceLinks) {
@@ -86,6 +199,9 @@ _Found ${totalResults} sources in ${(searchTime / 1000).toFixed(1)}s_`;
     }
   }
 
+  // Create sophisticated market snapshot
+  const marketSnapshot = createMarketSnapshot(state);
+
   // Build final message in the exact format from the example
   const message = `${config.emoji} ${signalDecision.direction} $${tokenSymbol.toUpperCase()}
 Risk: ${riskLabel}
@@ -94,7 +210,7 @@ Confidence: ${Math.round(signalDecision.confidence * 100)}%
 Timeframe: ${timeframe.label} (${timeframe.note} recommended)
 
 🗒️ *Market Snapshot*
-${signalDecision.reasoning}
+${marketSnapshot}
 
 🔍 *Why?*
 ${whySection}

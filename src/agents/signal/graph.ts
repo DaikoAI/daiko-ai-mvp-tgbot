@@ -4,8 +4,8 @@ import { logger } from "../../utils/logger";
 import { dataFetchRouter, formatSignalRouter, llmAnalysisRouter, staticFilterRouter } from "./graph-route";
 import { signalGraphState } from "./graph-state";
 import { fetchDataSources } from "./nodes/data-fetch";
+import { formatEnhancedSignal } from "./nodes/enhanced-signal-formatter";
 import { analyzeLLMSignal } from "./nodes/llm-analysis";
-import { formatSignal } from "./nodes/signal-formatter";
 import { applyStaticFilter } from "./nodes/static-filter";
 
 /**
@@ -20,7 +20,7 @@ export const initSignalGraph = () => {
     .addNode("static_filter", applyStaticFilter)
     .addNode("data_fetch", fetchDataSources)
     .addNode("llm_analysis", analyzeLLMSignal)
-    .addNode("format_signal", formatSignal)
+    .addNode("format_signal", formatEnhancedSignal)
 
     // エッジ定義
     .addEdge(START, "static_filter")
