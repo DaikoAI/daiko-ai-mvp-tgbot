@@ -143,7 +143,16 @@ export const generateCalibrationRecommendations = (
   }
 
   // Check for sufficient sample sizes
-  const lowSampleBuckets = calibrationResults.filter((bucket) => bucket.sampleSize < 20);
+// Define thresholds as constants for consistency
+const MIN_SAMPLE_SIZE_FOR_SIGNIFICANCE = 30;
+const MIN_SAMPLE_SIZE_FOR_WARNING = 20;
+
+export const generateCalibrationRecommendations = (
+  calibrationResults: CalibrationResult[],
+  // …other parameters
+) => {
+  // …function body
+}
   if (lowSampleBuckets.length > 0) {
     recommendations.push(
       `${lowSampleBuckets.length} confidence buckets have insufficient samples (<20) - collect more data`,
