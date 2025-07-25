@@ -41,27 +41,16 @@ const EXCLUDED_DOMAINS = [
 ];
 
 /**
- * Create enhanced search queries for fundamental analysis
+ * Create comprehensive search query for fundamental analysis
+ * Returns single query to reduce API calls to 1 per signal generation
  */
 const createFundamentalQueries = (tokenSymbol: string, tokenAddress?: string) => {
-  const baseQueries = [
-    // Fundamental analysis focused queries
-    `${tokenSymbol} token fundamentals utility roadmap team`,
-    `${tokenSymbol} crypto ecosystem partnerships adoption`,
-    `${tokenSymbol} blockchain technology use case real world`,
-    `${tokenSymbol} tokenomics supply demand economics`,
-    `${tokenSymbol} developer activity community governance`,
-  ];
+  // Single comprehensive query to reduce API calls to 1 per signal generation
+  const comprehensiveQuery = tokenAddress
+    ? `${tokenSymbol} ${tokenAddress} crypto token fundamentals utility roadmap team ecosystem partnerships adoption blockchain technology use case tokenomics supply demand economics developer activity community governance contract analysis security audit on-chain metrics holder distribution`
+    : `${tokenSymbol} crypto token fundamentals utility roadmap team ecosystem partnerships adoption blockchain technology use case tokenomics supply demand economics developer activity community governance`;
 
-  // Add address-specific queries if available
-  if (tokenAddress) {
-    baseQueries.push(
-      `${tokenAddress} token contract analysis security audit`,
-      `${tokenSymbol} ${tokenAddress} on-chain metrics holder distribution`,
-    );
-  }
-
-  return baseQueries;
+  return [comprehensiveQuery];
 };
 
 /**
@@ -92,17 +81,18 @@ export const fetchDataSources = async (state: SignalGraphState) => {
     maxDuration: MAX_SEARCH_DURATION_MS,
     fundamentalDomains: FUNDAMENTAL_DOMAINS.length,
     excludedDomains: EXCLUDED_DOMAINS.length,
+    queryCount: 1, // Single comprehensive query to reduce API calls
   });
 
   try {
-    // Create enhanced fundamental analysis queries
+    // Create comprehensive fundamental analysis query
     const fundamentalQueries = createFundamentalQueries(tokenSymbol, tokenAddress);
 
     // Execute enhanced search with domain filtering
     const searchResult = await searchAggregated({
       queries: fundamentalQueries,
       searchDepth: "advanced", // Use advanced search for better quality
-      maxResults: 20, // 2 results per query for more diverse sources
+      maxResults: 15, // Single comprehensive query with more results
       deduplicateResults: true,
     });
 
@@ -113,7 +103,7 @@ export const fetchDataSources = async (state: SignalGraphState) => {
         tokenSymbol,
         tokenAddress,
         searchDuration,
-        queriesUsed: fundamentalQueries.length,
+        queryUsed: fundamentalQueries[0],
         responseCount: searchResult?.responseCount || 0,
       });
 

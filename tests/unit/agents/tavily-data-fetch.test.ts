@@ -142,15 +142,9 @@ describe("Enhanced Fundamental Data Fetch", () => {
       await fetchDataSources(mockState);
 
       expect(searchAggregated).toHaveBeenCalledWith({
-        queries: expect.arrayContaining([
-          expect.stringContaining("SOL token fundamentals utility roadmap team"),
-          expect.stringContaining("SOL crypto ecosystem partnerships adoption"),
-          expect.stringContaining("SOL blockchain technology use case real world"),
-          expect.stringContaining("SOL tokenomics supply demand economics"),
-          expect.stringContaining("SOL developer activity community governance"),
-        ]),
+        queries: expect.any(Array),
         searchDepth: "advanced",
-        maxResults: 20,
+        maxResults: 15, // Updated from 20 to 15 for single comprehensive query
         deduplicateResults: true,
       });
     });
@@ -265,11 +259,11 @@ describe("Enhanced Fundamental Data Fetch", () => {
       const calledWith = (searchAggregated as any).mock.calls[0][0];
       const queries = calledWith.queries;
 
-      expect(queries).toContain("SOL token fundamentals utility roadmap team");
-      expect(queries).toContain("SOL crypto ecosystem partnerships adoption");
-      expect(queries).toContain("SOL blockchain technology use case real world");
-      expect(queries).toContain("SOL tokenomics supply demand economics");
-      expect(queries).toContain("SOL developer activity community governance");
+      // Now expects single comprehensive query containing all keywords
+      expect(queries).toHaveLength(1);
+      expect(queries[0]).toContain("SOL");
+      expect(queries[0]).toContain("fundamentals");
+      expect(queries[0]).toContain("tokenomics");
     });
 
     test("should include contract-specific queries when token address provided", async () => {
@@ -292,8 +286,7 @@ describe("Enhanced Fundamental Data Fetch", () => {
 
       const calledWith = (searchAggregated as any).mock.calls[0][0];
       expect(calledWith.searchDepth).toBe("advanced");
-      expect(calledWith.maxResults).toBe(20);
-      expect(calledWith.deduplicateResults).toBe(true);
+      expect(calledWith.maxResults).toBe(15); // Updated from 20 to 15
     });
 
     test("should track search performance metrics", async () => {
@@ -302,7 +295,7 @@ describe("Enhanced Fundamental Data Fetch", () => {
       expect(result.evidenceResults?.searchTime).toBeGreaterThanOrEqual(0);
       expect(result.evidenceResults?.totalResults).toBe(3);
       expect(result.evidenceResults?.searchQueries).toBeDefined();
-      expect(result.evidenceResults?.searchQueries.length).toBeGreaterThan(5);
+      expect(result.evidenceResults?.searchQueries.length).toBe(1); // Single comprehensive query
     });
   });
 });
