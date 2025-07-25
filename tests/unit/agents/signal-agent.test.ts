@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import type { TechnicalAnalysis } from "../../../src/db/schema/technical-analysis";
 import { createPhantomButtons } from "../../../src/lib/phantom";
 import { applyStaticSignalFilter } from "../../../src/lib/static-signal-filter";
@@ -27,6 +27,16 @@ const createMockAnalysis = (overrides: Partial<TechnicalAnalysis> = {}): Technic
 });
 
 describe("Signal Agent Unit Tests", () => {
+  beforeEach(() => {
+    // Clear any global state or mock data if necessary
+    // This is a placeholder, actual cleanup might involve resetting mocks
+  });
+
+  afterEach(() => {
+    // Restore any global state or mock data if necessary
+    // This is a placeholder, actual cleanup might involve resetting mocks
+  });
+
   describe("Static Filter Module", () => {
     it("should return shouldProceed false for normal market conditions", () => {
       // Setup - normal market conditions

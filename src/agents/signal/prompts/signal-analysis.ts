@@ -3,7 +3,7 @@ import { PromptTemplate } from "@langchain/core/prompts";
 import { z } from "zod";
 
 /**
- * Schema for structured signal analysis output
+ * Schema for structured signal analysis output with integrated sentiment analysis
  */
 export const signalAnalysisSchema = z.object({
   shouldGenerateSignal: z.boolean(),
@@ -14,7 +14,9 @@ export const signalAnalysisSchema = z.object({
   keyFactors: z.array(z.string()).max(3),
   riskLevel: z.enum(["LOW", "MEDIUM", "HIGH"]),
   timeframe: z.enum(["SHORT", "MEDIUM", "LONG"]),
-  marketSentiment: z.string(),
+  marketSentiment: z.enum(["BULLISH", "BEARISH", "NEUTRAL"]).describe("Overall market sentiment based on news sources analysis"),
+  sentimentConfidence: z.number().min(0).max(1).describe("Confidence in the sentiment analysis"),
+  sentimentFactors: z.array(z.string()).max(5).describe("Key factors influencing market sentiment"),
   priceExpectation: z.string(),
 });
 
@@ -24,7 +26,7 @@ export const signalAnalysisSchema = z.object({
 export const parser = StructuredOutputParser.fromZodSchema(signalAnalysisSchema);
 
 /**
- * Standard input variables for signal analysis
+ * Standard input variables for signal analysis with sentiment analysis
  */
 const ANALYSIS_INPUT_VARIABLES = [
   "tokenSymbol",
@@ -42,20 +44,17 @@ const ANALYSIS_INPUT_VARIABLES = [
   "confluenceScore",
   "riskLevel",
   "formatInstructions",
-  "evidenceSummary",
-  "evidenceConfidence",
-  "evidenceRecommendation",
-  "marketSentiment",
-  "newsCategory",
+  "externalSources",
   "sourcesCount",
+  "qualityScore",
 ];
 
 /**
- * Main signal analysis prompt for LLM evaluation
+ * Main signal analysis prompt for LLM evaluation with integrated sentiment analysis
  */
 export const signalAnalysisPrompt = new PromptTemplate({
   inputVariables: ANALYSIS_INPUT_VARIABLES,
-  template: `You are a professional crypto trading signal analyst specializing in beginner-friendly technical analysis interpretation.
+  template: `You are a professional crypto trading signal analyst specializing in beginner-friendly technical analysis interpretation and market sentiment analysis.
 
 ## Analysis Guidelines
 
@@ -63,6 +62,7 @@ export const signalAnalysisPrompt = new PromptTemplate({
 - Multiple indicators must align (market consensus)
 - Favorable risk-reward ratio
 - Clear directional bias with 60%+ confidence
+- External sentiment should support or not contradict technical signals
 
 **Risk Assessment:**
 - LOW: Single indicator, stable conditions, clear trend
@@ -73,6 +73,14 @@ export const signalAnalysisPrompt = new PromptTemplate({
 - SHORT: Minutes to hours (active trading)
 - MEDIUM: Days to weeks (swing trading)
 - LONG: Weeks to months (position trading)
+
+**Sentiment Analysis Factors:**
+- Technology developments and innovations
+- Partnerships and ecosystem adoption
+- Regulatory developments
+- Market trends and trader sentiment
+- Community and developer activity
+- Risk factors and security concerns
 
 ## Market Data
 
@@ -93,26 +101,38 @@ export const signalAnalysisPrompt = new PromptTemplate({
 - Confluence: {confluenceScore}
 - Risk: {riskLevel}
 
-**External Evidence:**
-- Summary: {evidenceSummary}
-- Confidence: {evidenceConfidence} (from {sourcesCount} sources)
-- Recommendation: {evidenceRecommendation}
-- Market Sentiment: {marketSentiment} ({newsCategory})
+**External News Sources (Quality Score: {qualityScore}):**
+{externalSources}
 
 ## Task
 
-Analyze the data and determine if a trading signal should be generated. Use beginner-friendly explanations focusing on:
+Perform both technical signal analysis AND sentiment analysis:
+
+### 1. Technical Analysis
+Determine if a trading signal should be generated based on technical indicators.
+
+### 2. Sentiment Analysis
+Analyze the external news sources to determine market sentiment:
+- Extract key fundamental factors
+- Assess overall sentiment (BULLISH/BEARISH/NEUTRAL)
+- Provide confidence level in sentiment analysis
+- Consider source quality and relevance
+
+### 3. Combined Analysis
+Integrate technical and sentiment analysis to make final signal decision.
+
+Focus on beginner-friendly explanations covering:
 1. How indicators align for market direction
-2. Current market sentiment and momentum
+2. Market sentiment based on news analysis
 3. Risk-reward potential across timeframes
 4. Market volatility impact on safety
-5. How external evidence supports or contradicts technical analysis
+5. How external sentiment supports or contradicts technical analysis
 
 CRITICAL: Use only half-width dashes (-) and standard punctuation. Never use em-dashes (—) or en-dashes (–).
 
 {formatInstructions}
 
-Provide structured analysis with clear, accessible reasoning.`,
+Provide structured analysis with clear, accessible reasoning for both technical and sentiment components.`,
 });
 
 /**

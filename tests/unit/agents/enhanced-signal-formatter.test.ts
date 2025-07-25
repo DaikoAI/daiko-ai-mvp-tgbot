@@ -5,7 +5,6 @@ import type { TechnicalAnalysis } from "../../../src/db/schema/technical-analysi
 
 // Mock dependencies using bun:test mock
 const mockCollectSignalPerformanceData = mock();
-const mockCalculateBacktestMetrics = mock();
 const mockCreatePhantomButtons = mock(() => [
   { text: "Buy on Phantom", url: "https://phantom.app/buy/SOL" },
 ]);
@@ -19,14 +18,6 @@ const mockLogger = {
 // Mock modules - following project patterns
 mock.module("../../../src/lib/backtesting/data-collector", () => ({
   collectSignalPerformanceData: mockCollectSignalPerformanceData,
-}));
-
-mock.module("../../../src/lib/backtesting/metrics-calculator", () => ({
-  calculateBacktestMetrics: mockCalculateBacktestMetrics,
-}));
-
-mock.module("../../../src/lib/phantom", () => ({
-  createPhantomButtons: mockCreatePhantomButtons,
 }));
 
 mock.module("../../../src/utils/logger", () => ({
@@ -84,7 +75,9 @@ const buildMockState = (overrides: Partial<SignalGraphState> = {}): SignalGraphS
     ],
     riskLevel: "HIGH",
     timeframe: "SHORT",
-    marketSentiment: "Bullish reversal expected",
+    marketSentiment: "BULLISH",
+    sentimentConfidence: 0.8,
+    sentimentFactors: ["Bullish reversal expected"],
     priceExpectation: "Upside potential 10-20%",
   },
   evidenceResults: {
@@ -109,10 +102,7 @@ const buildMockState = (overrides: Partial<SignalGraphState> = {}): SignalGraphS
     totalResults: 2,
     searchTime: 1500,
     qualityScore: 0.85,
-    primaryCause: "Technical oversold conditions",
-    searchStrategy: "BASIC",
-    marketSentiment: "BULLISH",
-    newsCategory: "BULLISH",
+    searchStrategy: "FUNDAMENTAL",
   },
   finalSignal: {
     level: 1,
@@ -124,26 +114,10 @@ const buildMockState = (overrides: Partial<SignalGraphState> = {}): SignalGraphS
   ...overrides,
 });
 
-/**
- * Create mock backtest metrics
- */
-const createMockBacktestMetrics = () => ({
-  winRate: 0.65,
-  avgReturn: 0.12,
-  avgLoss: -0.05,
-  sampleSize: 25,
-  totalReturn: 1.85,
-  maxDrawdown: 0.15,
-  sharpeRatio: 1.2,
-  riskRewardRatio: 2.4,
-  confidenceInterval: { lower: 0.55, upper: 0.75 },
-});
-
 describe("Enhanced Signal Formatter", () => {
   beforeEach(() => {
     // Reset all mocks before each test
     mockCollectSignalPerformanceData.mockReset();
-    mockCalculateBacktestMetrics.mockReset();
     mockCreatePhantomButtons.mockReset();
     mockLogger.info.mockReset();
     mockLogger.warn.mockReset();
@@ -157,7 +131,6 @@ describe("Enhanced Signal Formatter", () => {
   describe("formatEnhancedSignal - Normal Cases", () => {
     it("should return enhanced signal with all expected properties for BUY signal", async () => {
       // Setup
-      const mockMetrics = createMockBacktestMetrics();
       mockCollectSignalPerformanceData.mockImplementation(() => Promise.resolve([
         {
           signalType: "Oversold Bounce",
@@ -166,7 +139,6 @@ describe("Enhanced Signal Formatter", () => {
           isWin4h: true,
         },
       ]));
-      mockCalculateBacktestMetrics.mockImplementation(() => mockMetrics);
 
       const state = buildMockState();
 
@@ -215,7 +187,9 @@ describe("Enhanced Signal Formatter", () => {
           keyFactors: ["RSI 85 - overbought", "VWAP resistance"],
           riskLevel: "MEDIUM",
           timeframe: "MEDIUM",
-          marketSentiment: "Bearish trend forming",
+          marketSentiment: "BEARISH",
+          sentimentConfidence: 0.7,
+          sentimentFactors: ["Bearish trend forming"],
           priceExpectation: "Downside risk 8-15%",
         },
         technicalAnalysis: createMockTechnicalAnalysis({ rsi: "85", vwap_deviation: "-3.0" }),
@@ -244,7 +218,9 @@ describe("Enhanced Signal Formatter", () => {
           keyFactors: ["RSI 50 - neutral", "No clear trend"],
           riskLevel: "LOW",
           timeframe: "LONG",
-          marketSentiment: "Sideways consolidation",
+          marketSentiment: "NEUTRAL",
+          sentimentConfidence: 0.5,
+          sentimentFactors: ["Sideways consolidation"],
           priceExpectation: "Range-bound movement",
         },
       });
@@ -318,7 +294,7 @@ describe("Enhanced Signal Formatter", () => {
     it("should handle missing external backtest data gracefully", async () => {
       // Setup backtest data collection failure
       mockCollectSignalPerformanceData.mockImplementation(() => Promise.resolve([]));
-      mockCalculateBacktestMetrics.mockImplementation(() => null);
+
 
       const state = buildMockState();
 
@@ -379,11 +355,9 @@ describe("Enhanced Signal Formatter", () => {
       // Ensure we're in test environment
       process.env.NODE_ENV = "test";
 
-      const mockMetrics = createMockBacktestMetrics();
       mockCollectSignalPerformanceData.mockImplementation(() => Promise.resolve([
         { signalType: "Oversold Bounce", direction: "BUY", return4h: 0.12, isWin4h: true },
       ]));
-      mockCalculateBacktestMetrics.mockImplementation(() => mockMetrics);
 
       const state = buildMockState();
 
@@ -404,11 +378,9 @@ describe("Enhanced Signal Formatter", () => {
       // Set production environment
       process.env.NODE_ENV = "production";
 
-      const mockMetrics = createMockBacktestMetrics();
       mockCollectSignalPerformanceData.mockImplementation(() => Promise.resolve([
         { signalType: "Oversold Bounce", direction: "BUY", return4h: 0.12, isWin4h: true },
       ]));
-      mockCalculateBacktestMetrics.mockImplementation(() => mockMetrics);
 
       const state = buildMockState();
 

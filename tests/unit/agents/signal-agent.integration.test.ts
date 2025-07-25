@@ -3,7 +3,6 @@ import { initSignalGraph } from "../../../src/agents/signal/graph";
 import type { SignalGraphState } from "../../../src/agents/signal/graph-state";
 import { createSimpleSignalResponse } from "../../../src/agents/signal/nodes/signal-formatter";
 import type { TechnicalAnalysis } from "../../../src/db/schema/technical-analysis";
-import { createPhantomButtons } from "../../../src/lib/phantom";
 
 // Integration tests using real backtesting modules for end-to-end functionality
 
@@ -27,6 +26,43 @@ const createMockAnalysis = (overrides: Partial<TechnicalAnalysis> = {}): Technic
   ...overrides,
 });
 
+const createMockState = (overrides: Partial<SignalGraphState> = {}): SignalGraphState => ({
+  tokenSymbol: "SOL",
+  tokenAddress: "So11111111111111111111111111111111111111112",
+  currentPrice: 100,
+  technicalAnalysis: createMockAnalysis(),
+  staticFilterResult: {
+    shouldProceed: true,
+    triggeredIndicators: ["RSI_OVERSOLD"],
+    signalCandidates: ["BUY"],
+    confluenceScore: 0.65,
+    riskLevel: "MEDIUM",
+  },
+  evidenceResults: {
+    relevantSources: [],
+    searchQueries: [],
+    totalResults: 0,
+    searchTime: 0,
+    qualityScore: 0,
+    searchStrategy: "SKIP",
+  },
+  signalDecision: {
+    shouldGenerateSignal: true,
+    signalType: "RSI_OVERSOLD",
+    direction: "BUY",
+    confidence: 0.65,
+    reasoning: "Strong oversold signal",
+    keyFactors: ["RSI oversold", "VWAP deviation"],
+    riskLevel: "MEDIUM",
+    timeframe: "SHORT",
+    marketSentiment: "BULLISH",
+    sentimentConfidence: 0.7,
+    sentimentFactors: ["Positive market indicators"],
+    priceExpectation: "Recovery expected",
+  },
+  ...overrides,
+} as SignalGraphState);
+
 describe("Signal Agent Integration Tests", () => {
   describe("Full Graph Functionality", () => {
     it("should initialize graph successfully", () => {
@@ -35,8 +71,10 @@ describe("Signal Agent Integration Tests", () => {
       expect(typeof graph.invoke).toBe("function");
     });
 
-    it("should create phantom buttons correctly", () => {
-      const buttons = createPhantomButtons("So11111111111111111111111111111111111111112", "SOL");
+    it("should create phantom buttons correctly", async () => {
+      // Use dynamic import to avoid test interference
+      const { createPhantomButtons: freshCreatePhantomButtons } = await import("../../../src/lib/phantom");
+      const buttons = freshCreatePhantomButtons("So11111111111111111111111111111111111111112", "SOL");
       expect(Array.isArray(buttons)).toBe(true);
       expect(buttons[0]).toHaveProperty("text");
       expect(buttons[0]).toHaveProperty("url");
@@ -89,10 +127,7 @@ describe("Signal Agent Integration Tests", () => {
 
   describe("Signal Formatting Integration", () => {
     it("should format BUY signal with enhanced template", () => {
-      const result = createSimpleSignalResponse({
-        tokenSymbol: "SOL",
-        tokenAddress: "So11111111111111111111111111111111111111112",
-        currentPrice: 100,
+      const mockState = createMockState({
         technicalAnalysis: createMockAnalysis(),
         signalDecision: {
           shouldGenerateSignal: true,
@@ -103,10 +138,14 @@ describe("Signal Agent Integration Tests", () => {
           keyFactors: ["RSI oversold", "VWAP deviation"],
           riskLevel: "MEDIUM",
           timeframe: "SHORT",
-          marketSentiment: "Bullish",
+          marketSentiment: "BULLISH",
+          sentimentConfidence: 0.7,
+          sentimentFactors: ["Positive market indicators"],
           priceExpectation: "Recovery expected",
         },
-      } as SignalGraphState);
+      });
+
+      const result = createSimpleSignalResponse(mockState);
 
       expect(result.finalSignal?.message).toContain("🗒️ *Market Snapshot*");
       expect(result.finalSignal?.message).toContain("🎯 *Suggested Action*");

@@ -29,13 +29,27 @@ export const analyzeLLMSignal = async (state: SignalGraphState) => {
   });
 
   try {
-    // Prepare evidence summary from external data with enhanced metadata
-    const evidenceSummary = state.evidenceResults?.primaryCause || "No external evidence available";
-    const evidenceConfidence = state.evidenceResults?.qualityScore?.toFixed(2) || "0.00";
-    const evidenceRecommendation = state.evidenceResults?.searchStrategy || "UNCERTAIN";
-    const marketSentiment = state.evidenceResults?.marketSentiment || "NEUTRAL";
-    const newsCategory = state.evidenceResults?.newsCategory || "NEUTRAL";
-    const sourcesCount = state.evidenceResults?.relevantSources?.length || 0;
+    // Prepare external sources data for sentiment analysis
+    const sources = state.evidenceResults?.relevantSources || [];
+    const sourcesCount = sources.length;
+    const qualityScore = state.evidenceResults?.qualityScore?.toFixed(2) || "0.00";
+
+    // Format external sources for LLM analysis
+    const externalSources = sources.length > 0
+      ? sources.map((source, index) => {
+          const domainNote = source.domain.includes("coindesk.com") ||
+                           source.domain.includes("cointelegraph.com") ||
+                           source.domain.includes("decrypt.co") ||
+                           source.domain.includes("theblock.co") ?
+                           " (High-quality source)" : "";
+          return `${index + 1}. ${source.title}${domainNote}
+Domain: ${source.domain}
+Score: ${source.score.toFixed(2)}
+Content: ${source.content.slice(0, 800)}...
+Published: ${source.publishedDate || "N/A"}
+`;
+        }).join("\n")
+      : "No external sources available for sentiment analysis.";
 
     const result = await chain.invoke({
       formatInstructions: parser.getFormatInstructions(),
@@ -53,12 +67,9 @@ export const analyzeLLMSignal = async (state: SignalGraphState) => {
       signalCandidates: state.staticFilterResult.signalCandidates.join(", "),
       confluenceScore: state.staticFilterResult.confluenceScore.toFixed(3),
       riskLevel: state.staticFilterResult.riskLevel,
-      evidenceSummary,
-      evidenceConfidence,
-      evidenceRecommendation,
-      marketSentiment,
-      newsCategory,
+      externalSources,
       sourcesCount,
+      qualityScore,
     });
 
     logger.info("LLM signal analysis completed", {

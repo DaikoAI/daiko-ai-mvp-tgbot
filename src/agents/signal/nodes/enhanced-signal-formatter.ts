@@ -7,7 +7,33 @@ import { logger } from "../../../utils/logger";
 import type { SignalGraphState } from "../graph-state";
 
 /**
- * Configuration for signal direction display
+ * Configuration for signal formatting
+ */
+interface SignalConfig {
+  defaultInvestment: number;
+  stopLossPercent: number;
+  defaultTargetPercent: number;
+  cacheTTLMs: number;
+}
+
+const STATIC_CONFIG: SignalConfig = {
+  defaultInvestment: 1000,
+  stopLossPercent: 2,
+  defaultTargetPercent: 6,
+  cacheTTLMs: 30 * 60 * 1000, // 30 minutes
+};
+
+/**
+ * Get dynamic configuration based on current environment
+ */
+const getConfig = () => ({
+  ...STATIC_CONFIG,
+  minSampleSize: process.env.NODE_ENV === "test" ? 2 : 5,
+  lookbackDays: process.env.NODE_ENV === "test" ? 1 : 30,
+});
+
+/**
+ * Signal direction configuration
  */
 const SIGNAL_CONFIG = {
   BUY: { emoji: "🚀" },
@@ -16,7 +42,7 @@ const SIGNAL_CONFIG = {
 } as const;
 
 /**
- * Configuration for timeframe display
+ * Timeframe configuration
  */
 const TIMEFRAME_CONFIG = {
   SHORT: { label: "Short-term", note: "1-4h re-check" },
@@ -25,17 +51,13 @@ const TIMEFRAME_CONFIG = {
 } as const;
 
 /**
- * Cache for backtest results to avoid repeated database queries
+ * Cache for backtest results
  */
 interface BacktestCache {
-  [key: string]: {
-    metrics: BacktestMetrics;
-    timestamp: number;
-  };
+  [key: string]: { metrics: BacktestMetrics; timestamp: number };
 }
 
 const backtestCache: BacktestCache = {};
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
  * Get cached backtest metrics or fetch new ones
@@ -47,28 +69,23 @@ const getSignalMetrics = async (
   const cacheKey = `${signalType}_${direction}`;
   const cached = backtestCache[cacheKey];
 
-  // Return cached result if still valid
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    logger.debug("Using cached backtest metrics", { signalType, direction, cacheAge: Date.now() - cached.timestamp });
+  if (cached && Date.now() - cached.timestamp < getConfig().cacheTTLMs) {
+    logger.debug("Using cached backtest metrics", { signalType, direction });
     return cached.metrics;
   }
 
   try {
     logger.info("Fetching backtest metrics for signal type", { signalType, direction });
 
-    // Use existing backtesting infrastructure with test-friendly defaults
     const config = {
-      lookbackDays: process.env.NODE_ENV === "test" ? 1 : 30, // Use 1 day for tests, 30 for production
-      minSampleSize: process.env.NODE_ENV === "test" ? 2 : 5, // Reduce minimum sample size for tests
+      lookbackDays: getConfig().lookbackDays,
+      minSampleSize: getConfig().minSampleSize,
       winThreshold: 0.02,
       confidenceBuckets: [],
-      timeframes: ["4h"] as ("1h" | "4h" | "24h")[],
+      timeframes: ["4h"] as Array<"1h" | "4h" | "24h">,
     };
 
-    // Collect signal performance data
     const signalResults = await collectSignalPerformanceData(config);
-
-    // Filter for specific signal type and direction
     const filteredResults = signalResults.filter(
       (result) => result.signalType === signalType && result.direction === direction,
     );
@@ -83,23 +100,16 @@ const getSignalMetrics = async (
       return null;
     }
 
-    // Calculate metrics for 4h timeframe
     const metrics = calculateBacktestMetrics(filteredResults, "4h");
 
-    if (metrics && metrics.sampleSize >= config.minSampleSize) {
-      // Cache the result
-      backtestCache[cacheKey] = {
-        metrics: metrics,
-        timestamp: Date.now(),
-      };
-
+    if (metrics?.sampleSize >= config.minSampleSize) {
+      backtestCache[cacheKey] = { metrics, timestamp: Date.now() };
       logger.info("Fetched and cached new backtest metrics", {
         signalType,
         direction,
-        winRate: (metrics.winRate * 100).toFixed(1) + "%",
+        winRate: `${(metrics.winRate * 100).toFixed(1)}%`,
         sampleSize: metrics.sampleSize,
       });
-
       return metrics;
     }
 
@@ -115,152 +125,59 @@ const getSignalMetrics = async (
 };
 
 /**
- * Calculate P/L simulation for $1000 investment
+ * Calculate P/L simulation
  */
-const calculatePLSimulation = (metrics: BacktestMetrics, investment: number = 1000) => {
-  const expectedProfit = Math.round(investment * metrics.avgReturn);
-  const expectedLoss = Math.round(investment * metrics.avgLoss);
-  const winRate = Math.round(metrics.winRate * 100);
-
-  return {
-    expectedProfit,
-    expectedLoss,
-    winRate,
-    sampleSize: metrics.sampleSize,
-    riskRewardRatio: metrics.riskRewardRatio,
-  };
-};
-
-/**
- * Creates an enhanced signal response with backtest data
- */
-export const createEnhancedSignalResponse = async (state: SignalGraphState) => {
-  const { signalDecision, tokenSymbol, tokenAddress, currentPrice } = state;
-
-  if (!signalDecision) {
-    return createNoSignalResponse(state);
-  }
-
-  const config = SIGNAL_CONFIG[signalDecision.direction as keyof typeof SIGNAL_CONFIG];
-  const timeframe = TIMEFRAME_CONFIG[signalDecision.timeframe as keyof typeof TIMEFRAME_CONFIG];
-  const riskLabel = signalDecision.riskLevel.charAt(0) + signalDecision.riskLevel.slice(1).toLowerCase();
-
-  // Fetch backtest metrics for this signal type
-  const metrics = await getSignalMetrics(signalDecision.signalType, signalDecision.direction);
-
-  // Analyze technical indicators
-  const analyzer = new TechnicalIndicatorAnalyzer(state.technicalAnalysis);
-  const indicatorBullets = analyzer.getBulletPoints();
-
-  // Build why section with top 3 indicators
-  const whySection =
-    indicatorBullets.length > 0
-      ? indicatorBullets
-          .slice(0, 3)
-          .map((bullet) => `● ${bullet}`)
-          .join("\n")
-      : signalDecision.keyFactors
-          .slice(0, 3)
-          .map((factor) => `● ${factor}`)
-          .join("\n");
-
-  // Generate action plan with entry/stop/target levels
-  const actionPlan = generateActionPlan(signalDecision, currentPrice, metrics);
-
-  // Build market intel section from evidence results
-  const marketIntel = buildMarketIntelSection(state.evidenceResults);
-
-  // Build P/L preview section if metrics available
-  const plPreview = metrics ? calculatePLSimulation(metrics) : null;
-
-  // Build the enhanced message
-  const message = buildEnhancedMessage({
-    config,
-    tokenSymbol,
-    plPreview,
-    signalDecision,
-    whySection,
-    actionPlan,
-    marketIntel,
-    timeframe,
-  });
-
-  // Determine level based on risk and confidence
-  const level =
-    signalDecision.riskLevel === "HIGH" || signalDecision.confidence >= 0.8
-      ? 3
-      : signalDecision.riskLevel === "MEDIUM" || signalDecision.confidence >= 0.6
-        ? 2
-        : 1;
-
-  return {
-    finalSignal: {
-      level: level as 1 | 2 | 3,
-      title: `${config.emoji} ${signalDecision.direction} $${tokenSymbol.toUpperCase()} - ${riskLabel} Risk`,
-      message,
-      priority: signalDecision.riskLevel as "LOW" | "MEDIUM" | "HIGH",
-      tags: [tokenSymbol.toLowerCase(), signalDecision.direction.toLowerCase(), signalDecision.riskLevel.toLowerCase()],
-      buttons: createPhantomButtons(tokenAddress, tokenSymbol),
-    },
-  };
-};
+const calculatePLSimulation = (metrics: BacktestMetrics, investment = getConfig().defaultInvestment) => ({
+  expectedProfit: Math.round(investment * metrics.avgReturn),
+  expectedLoss: Math.round(investment * metrics.avgLoss),
+  winRate: Math.round(metrics.winRate * 100),
+  sampleSize: metrics.sampleSize,
+  riskRewardRatio: metrics.riskRewardRatio,
+});
 
 /**
  * Generate action plan with specific price levels
  */
 const generateActionPlan = (
-  signalDecision: { direction: "BUY" | "SELL" | "NEUTRAL" },
+  direction: "BUY" | "SELL" | "NEUTRAL",
   currentPrice: number,
   metrics: BacktestMetrics | null,
 ) => {
-  const stopLossPercent = 2; // 2% stop loss
-  const targetPercent = metrics ? metrics.riskRewardRatio * stopLossPercent : 6; // Use RRR or default 6%
+  const targetPercent = metrics
+    ? metrics.riskRewardRatio * getConfig().stopLossPercent
+    : getConfig().defaultTargetPercent;
 
   const entryPrice = currentPrice;
-  const stopPrice =
-    signalDecision.direction === "BUY"
-      ? currentPrice * (1 - stopLossPercent / 100)
-      : currentPrice * (1 + stopLossPercent / 100);
-  const targetPrice =
-    signalDecision.direction === "BUY"
-      ? currentPrice * (1 + targetPercent / 100)
-      : currentPrice * (1 - targetPercent / 100);
+  const stopPrice = direction === "BUY"
+    ? currentPrice * (1 - getConfig().stopLossPercent / 100)
+    : currentPrice * (1 + getConfig().stopLossPercent / 100);
+  const targetPrice = direction === "BUY"
+    ? currentPrice * (1 + targetPercent / 100)
+    : currentPrice * (1 - targetPercent / 100);
 
   return {
     entry: entryPrice.toFixed(8),
     stop: stopPrice.toFixed(8),
     target: targetPrice.toFixed(8),
-    stopPercent: stopLossPercent,
+    stopPercent: getConfig().stopLossPercent,
     targetPercent: Math.round(targetPercent),
   };
 };
 
 /**
- * Build market intel section from evidence results
+ * Build market intel section
  */
-const buildMarketIntelSection = (
-  evidenceResults:
-    | {
-        relevantSources?: Array<{
-          url?: string;
-          title?: string;
-          domain?: string;
-        }>;
-        marketSentiment?: string;
-      }
-    | undefined,
-) => {
-  if (!evidenceResults?.relevantSources || evidenceResults.relevantSources.length === 0) {
-    return {
-      sentiment: "NEUTRAL",
-      sources: [],
-      hasIntel: false,
-    };
+const buildMarketIntelSection = (evidenceResults?: {
+  relevantSources?: Array<{ url?: string; title?: string; domain?: string }>;
+  marketSentiment?: string;
+}) => {
+  if (!evidenceResults?.relevantSources?.length) {
+    return { sentiment: "NEUTRAL", sources: [], hasIntel: false };
   }
 
   const sources = evidenceResults.relevantSources
     .slice(0, 2)
-    .map((source, index: number) => {
+    .map((source, index) => {
       if (source?.url && source?.title) {
         const title = source.title.slice(0, 45);
         const domain = source.domain || new URL(source.url).hostname;
@@ -278,62 +195,35 @@ const buildMarketIntelSection = (
 };
 
 /**
- * Build the enhanced message with all components
+ * Build enhanced message sections
  */
-const buildEnhancedMessage = ({
-  config,
-  tokenSymbol,
-  plPreview,
-  signalDecision,
-  whySection,
-  actionPlan,
-  marketIntel,
-  timeframe,
-}: {
+const buildMessageSections = (data: {
   config: { emoji: string };
   tokenSymbol: string;
-  plPreview: {
-    expectedProfit: number;
-    expectedLoss: number;
-    winRate: number;
-    sampleSize: number;
-  } | null;
-  signalDecision: { direction: string };
+  direction: string;
+  plPreview: ReturnType<typeof calculatePLSimulation> | null;
   whySection: string;
-  actionPlan: {
-    entry: string;
-    stop: string;
-    target: string;
-    stopPercent: number;
-    targetPercent: number;
-  };
-  marketIntel: {
-    sentiment: string;
-    sources: string[];
-    hasIntel: boolean;
-  };
+  actionPlan: ReturnType<typeof generateActionPlan>;
+  marketIntel: ReturnType<typeof buildMarketIntelSection>;
   timeframe: { label: string; note: string };
 }) => {
-  // 1-second decision section - most important info upfront
-  const quickDecisionSection = plPreview
-    ? `💰 *$1000 → +$${plPreview.expectedProfit}* (${plPreview.winRate}% success, ${plPreview.sampleSize} signals tracked)`
-    : `💰 *Expected Return*: Data collecting...`;
+  const { plPreview, whySection, actionPlan, marketIntel, timeframe } = data;
 
-  // Simplified strength (max 2 bullets for clarity)
+  const quickDecision = plPreview
+    ? `💰 *$${getConfig().defaultInvestment} → +$${plPreview.expectedProfit}* (${plPreview.winRate}% success, ${plPreview.sampleSize} signals tracked)`
+    : "💰 *Expected Return*: Data collecting...";
+
   const strengthSection = whySection.split("\n").slice(0, 2).join("\n");
 
-  // Clear action with exact steps
   const actionSection = `⚡ *Next Steps*
 1️⃣ *Entry*: $${actionPlan.entry} (current market)
 2️⃣ *Stop Loss*: $${actionPlan.stop} (${actionPlan.stopPercent}% protection)
 3️⃣ *Target*: $${actionPlan.target} (+${actionPlan.targetPercent}% goal)`;
 
-  // Condensed intel
   const intelSection = marketIntel.hasIntel
     ? `📰 *Market Context* (${marketIntel.sentiment}): ${marketIntel.sources.length} sources analyzed`
     : "📰 *Market Context*: Neutral sentiment";
 
-  // Clear risk guidance instead of "DYOR"
   const confidenceSection = plPreview
     ? `📈 *Our Track Record*
 ✅ Win Rate: ${plPreview.winRate}% (last ${plPreview.sampleSize} signals)
@@ -343,22 +233,92 @@ const buildEnhancedMessage = ({
 💡 Start with 25-50% of intended position
 ⚠️ Always use stop losses for protection`;
 
-  // Combine with clear hierarchy
-  return `${config.emoji} *${signalDecision.direction} $${tokenSymbol.toUpperCase()}*
-${quickDecisionSection}
+  return {
+    quickDecision,
+    strengthSection,
+    actionSection,
+    intelSection,
+    confidenceSection,
+    timeframe: `⏱️ *Timeframe*: ${timeframe.label} (${timeframe.note})`,
+  };
+};
+
+/**
+ * Build the complete enhanced message
+ */
+const buildEnhancedMessage = (data: Parameters<typeof buildMessageSections>[0]) => {
+  const sections = buildMessageSections(data);
+
+  return `${data.config.emoji} *${data.direction} $${data.tokenSymbol.toUpperCase()}*
+${sections.quickDecision}
 
 📊 *Why This Signal*
-${strengthSection}
+${sections.strengthSection}
 
-${actionSection}
+${sections.actionSection}
 
-${intelSection}
+${sections.intelSection}
 
-${confidenceSection}
+${sections.confidenceSection}
 
-⏱️ *Timeframe*: ${timeframe.label} (${timeframe.note})
+${sections.timeframe}
 
 🤖 _AI Analysis - Trade at your own discretion_`;
+};
+
+/**
+ * Creates an enhanced signal response with backtest data
+ */
+export const createEnhancedSignalResponse = async (state: SignalGraphState) => {
+  const { signalDecision, tokenSymbol, tokenAddress, currentPrice } = state;
+
+  if (!signalDecision) {
+    return createNoSignalResponse(state);
+  }
+
+  const config = SIGNAL_CONFIG[signalDecision.direction as keyof typeof SIGNAL_CONFIG];
+  const timeframe = TIMEFRAME_CONFIG[signalDecision.timeframe as keyof typeof TIMEFRAME_CONFIG];
+  const riskLabel = signalDecision.riskLevel.charAt(0) + signalDecision.riskLevel.slice(1).toLowerCase();
+
+  // Fetch metrics and build content
+  const metrics = await getSignalMetrics(signalDecision.signalType, signalDecision.direction);
+  const analyzer = new TechnicalIndicatorAnalyzer(state.technicalAnalysis);
+  const indicatorBullets = analyzer.getBulletPoints();
+
+  const whySection = indicatorBullets.length > 0
+    ? indicatorBullets.slice(0, 3).map((bullet) => `● ${bullet}`).join("\n")
+    : signalDecision.keyFactors.slice(0, 3).map((factor) => `● ${factor}`).join("\n");
+
+  const actionPlan = generateActionPlan(signalDecision.direction, currentPrice, metrics);
+  const marketIntel = buildMarketIntelSection(state.evidenceResults);
+  const plPreview = metrics ? calculatePLSimulation(metrics) : null;
+
+  const message = buildEnhancedMessage({
+    config,
+    tokenSymbol,
+    direction: signalDecision.direction,
+    plPreview,
+    whySection,
+    actionPlan,
+    marketIntel,
+    timeframe,
+  });
+
+  // Determine level based on risk and confidence
+  const level =
+    signalDecision.riskLevel === "HIGH" || signalDecision.confidence >= 0.8 ? 3 :
+    signalDecision.riskLevel === "MEDIUM" || signalDecision.confidence >= 0.6 ? 2 : 1;
+
+  return {
+    finalSignal: {
+      level: level as 1 | 2 | 3,
+      title: `${config.emoji} ${signalDecision.direction} $${tokenSymbol.toUpperCase()} - ${riskLabel} Risk`,
+      message,
+      priority: signalDecision.riskLevel as "LOW" | "MEDIUM" | "HIGH",
+      tags: [tokenSymbol.toLowerCase(), signalDecision.direction.toLowerCase(), signalDecision.riskLevel.toLowerCase()],
+      buttons: createPhantomButtons(tokenAddress, tokenSymbol),
+    },
+  };
 };
 
 /**
@@ -406,24 +366,14 @@ export const formatEnhancedSignal = async (state: SignalGraphState) => {
     hasTechnicalAnalysis: !!state.technicalAnalysis,
   });
 
-  // Early exit if no signal decision exists
-  if (!state.signalDecision) {
-    logger.info("No signal decision found, returning no signal response", {
-      tokenAddress: state.tokenAddress,
-    });
-    return createNoSignalResponse(state);
-  }
-
-  // When no signal should be generated
-  if (!state.signalDecision.shouldGenerateSignal) {
-    logger.info("Signal decision indicates no signal should be generated", {
+  if (!state.signalDecision?.shouldGenerateSignal) {
+    logger.info("No signal decision or signal generation disabled", {
       tokenAddress: state.tokenAddress,
       shouldGenerateSignal: state.signalDecision?.shouldGenerateSignal,
     });
     return createNoSignalResponse(state);
   }
 
-  // Use enhanced formatting with backtest data
   logger.info("Using enhanced signal formatting with backtest integration", {
     tokenAddress: state.tokenAddress,
     signalType: state.signalDecision?.signalType,

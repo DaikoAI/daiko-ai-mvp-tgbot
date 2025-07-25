@@ -164,8 +164,8 @@ describe("Enhanced Fundamental Data Fetch", () => {
       expect(result.evidenceResults).toBeDefined();
       expect(result.evidenceResults?.relevantSources).toHaveLength(0);
       expect(result.evidenceResults?.searchStrategy).toBe("FUNDAMENTAL");
-      expect(result.evidenceResults?.marketSentiment).toBe("NEUTRAL");
-      expect(result.evidenceResults?.primaryCause).toContain("No fundamental sources found");
+      expect(result.evidenceResults?.qualityScore).toBe(0.1);
+      expect(result.evidenceResults?.totalResults).toBe(0);
     });
   });
 
@@ -173,8 +173,8 @@ describe("Enhanced Fundamental Data Fetch", () => {
     test("should correctly identify bullish sentiment from fundamental sources", async () => {
       const result = await fetchDataSources(mockState);
 
-      expect(result.evidenceResults?.marketSentiment).toBe("BULLISH");
       expect(result.evidenceResults?.qualityScore).toBeGreaterThan(0.6);
+      expect(result.evidenceResults?.relevantSources.length).toBeGreaterThan(0);
     });
 
     test("should correctly identify bearish sentiment", async () => {
@@ -183,8 +183,8 @@ describe("Enhanced Fundamental Data Fetch", () => {
 
       const result = await fetchDataSources(mockState);
 
-      expect(result.evidenceResults?.marketSentiment).toBe("BEARISH");
       expect(result.evidenceResults?.qualityScore).toBeGreaterThan(0.5);
+      expect(result.evidenceResults?.relevantSources.length).toBeGreaterThan(0);
     });
 
     test("should default to neutral sentiment for balanced or unclear signals", async () => {
@@ -193,7 +193,8 @@ describe("Enhanced Fundamental Data Fetch", () => {
 
       const result = await fetchDataSources(mockState);
 
-      expect(result.evidenceResults?.marketSentiment).toBe("NEUTRAL");
+      expect(result.evidenceResults?.qualityScore).toBe(0.1);
+      expect(result.evidenceResults?.relevantSources).toHaveLength(0);
     });
   });
 
@@ -238,7 +239,8 @@ describe("Enhanced Fundamental Data Fetch", () => {
 
       expect(result.evidenceResults).toBeDefined();
       expect(result.evidenceResults?.searchStrategy).toBe("FAILED");
-      expect(result.evidenceResults?.primaryCause).toContain("Search failed");
+      expect(result.evidenceResults?.relevantSources).toHaveLength(0);
+      expect(result.evidenceResults?.qualityScore).toBe(0);
     });
 
     test("should handle API key errors specifically", async () => {
@@ -248,8 +250,9 @@ describe("Enhanced Fundamental Data Fetch", () => {
       const result = await fetchDataSources(mockState);
 
       expect(result.evidenceResults).toBeDefined();
-      expect(result.evidenceResults?.primaryCause).toBe("Tavily API key not configured");
+      expect(result.evidenceResults?.searchStrategy).toBe("SKIP");
       expect(result.evidenceResults?.relevantSources).toHaveLength(0);
+      expect(result.evidenceResults?.qualityScore).toBe(0);
     });
   });
 

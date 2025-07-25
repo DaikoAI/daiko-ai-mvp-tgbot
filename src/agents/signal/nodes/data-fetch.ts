@@ -6,9 +6,6 @@ import type { SignalGraphState } from "../graph-state";
 // Constants for API limits and timeouts
 const MAX_SEARCH_DURATION_MS = 30000; // 30 seconds
 
-// Constants for sentiment analysis
-const SENTIMENT_THRESHOLD_MULTIPLIER = 1.2; // Threshold multiplier for determining bullish/bearish sentiment
-
 // High-quality domains for fundamental analysis
 const FUNDAMENTAL_DOMAINS = [
   "cryptoslate.com",
@@ -68,111 +65,6 @@ const createFundamentalQueries = (tokenSymbol: string, tokenAddress?: string) =>
 };
 
 /**
- * Enhanced sentiment analysis with fundamental factors
- */
-const analyzeFundamentalSentiment = (sources: Array<{ title: string; content: string; domain: string }>) => {
-  const fundamentalKeywords = {
-    bullish: [
-      // Technology & Innovation
-      "breakthrough",
-      "innovation",
-      "revolutionary",
-      "upgrade",
-      "improvement",
-      // Adoption & Partnerships
-      "partnership",
-      "adoption",
-      "integration",
-      "collaboration",
-      "enterprise",
-      // Community & Development
-      "community growth",
-      "developer activity",
-      "ecosystem",
-      "mainnet",
-      "launch",
-      // Regulatory & Institutional
-      "institutional",
-      "regulation clarity",
-      "compliance",
-      "approval",
-      "etf",
-      // Utility & Use Cases
-      "real world utility",
-      "use case",
-      "problem solving",
-      "efficiency",
-      "scalability",
-    ],
-    bearish: [
-      // Security & Technical Issues
-      "hack",
-      "exploit",
-      "vulnerability",
-      "bug",
-      "security breach",
-      // Regulatory Issues
-      "regulatory crackdown",
-      "ban",
-      "investigation",
-      "lawsuit",
-      "penalty",
-      // Market Issues
-      "sell-off",
-      "liquidation",
-      "bear market",
-      "recession",
-      "inflation",
-      // Project Issues
-      "delayed",
-      "postponed",
-      "failed",
-      "exit scam",
-      "rug pull",
-      "abandoned",
-    ],
-  };
-
-  let bullishScore = 0;
-  let bearishScore = 0;
-  const fundamentalFactors: string[] = [];
-
-  sources.forEach((source) => {
-    const text = `${source.title} ${source.content}`.toLowerCase();
-
-    // Weight high-quality domains more heavily
-    const domainWeight = FUNDAMENTAL_DOMAINS.includes(source.domain) ? 2 : 1;
-
-    fundamentalKeywords.bullish.forEach((keyword) => {
-      if (text.includes(keyword)) {
-        bullishScore += domainWeight;
-        if (!fundamentalFactors.includes(keyword)) {
-          fundamentalFactors.push(keyword);
-        }
-      }
-    });
-
-    fundamentalKeywords.bearish.forEach((keyword) => {
-      if (text.includes(keyword)) {
-        bearishScore += domainWeight;
-        if (!fundamentalFactors.includes(keyword)) {
-          fundamentalFactors.push(keyword);
-        }
-      }
-    });
-  });
-
-  const sentiment =
-    bullishScore > bearishScore * SENTIMENT_THRESHOLD_MULTIPLIER
-      ? "BULLISH"
-      : bearishScore > bullishScore * SENTIMENT_THRESHOLD_MULTIPLIER
-        ? "BEARISH"
-        : "NEUTRAL";
-
-  return { sentiment, fundamentalFactors, bullishScore, bearishScore };
-};
-
-/**
  * Convert TavilySearchResult to the expected format for evidenceResults
  */
 const convertToEvidenceFormat = (results: TavilySearchResult[]) => {
@@ -188,6 +80,7 @@ const convertToEvidenceFormat = (results: TavilySearchResult[]) => {
 
 /**
  * Enhanced Data Fetch Node using Tavily SDK wrapper with fundamental analysis focus
+ * Returns raw source data for LLM-based sentiment analysis in llm-analysis step
  */
 export const fetchDataSources = async (state: SignalGraphState) => {
   const { tokenSymbol, tokenAddress } = state;
@@ -230,11 +123,8 @@ export const fetchDataSources = async (state: SignalGraphState) => {
           searchQueries: fundamentalQueries,
           totalResults: 0,
           searchTime: searchDuration,
-          marketSentiment: "NEUTRAL" as const,
-          primaryCause: "No fundamental sources found",
-          searchStrategy: "FUNDAMENTAL" as const,
           qualityScore: 0.1,
-          newsCategory: "NEUTRAL" as const,
+          searchStrategy: "FUNDAMENTAL" as const,
         },
       };
     }
@@ -255,9 +145,6 @@ export const fetchDataSources = async (state: SignalGraphState) => {
       })
       .slice(0, 5); // Limit to top 5 quality sources
 
-    // Enhanced fundamental sentiment analysis
-    const sentimentAnalysis = analyzeFundamentalSentiment(qualitySources);
-
     // Calculate quality score based on source quality and relevance
     const fundamentalSourceCount = qualitySources.filter((s) => FUNDAMENTAL_DOMAINS.includes(s.domain)).length;
 
@@ -275,8 +162,6 @@ export const fetchDataSources = async (state: SignalGraphState) => {
       qualitySources: qualitySources.length,
       fundamentalSources: fundamentalSourceCount,
       searchDuration,
-      marketSentiment: sentimentAnalysis.sentiment,
-      fundamentalFactors: sentimentAnalysis.fundamentalFactors.slice(0, 3),
       qualityScore: qualityScore.toFixed(2),
       responseCount: searchResult.responseCount,
     });
@@ -287,14 +172,8 @@ export const fetchDataSources = async (state: SignalGraphState) => {
         searchQueries: fundamentalQueries,
         totalResults: searchResult.allResults.length,
         searchTime: searchDuration,
-        marketSentiment: sentimentAnalysis.sentiment,
-        primaryCause:
-          sentimentAnalysis.fundamentalFactors.length > 0
-            ? `Key factors: ${sentimentAnalysis.fundamentalFactors.slice(0, 3).join(", ")}`
-            : null,
-        searchStrategy: "FUNDAMENTAL" as const,
         qualityScore,
-        newsCategory: sentimentAnalysis.sentiment as "BULLISH" | "BEARISH" | "NEUTRAL",
+        searchStrategy: "FUNDAMENTAL" as const,
       },
     };
   } catch (error) {
@@ -310,7 +189,6 @@ export const fetchDataSources = async (state: SignalGraphState) => {
 
     // Check if the error is due to missing API key
     const isApiKeyError = errorMessage.includes("API key not configured");
-    const primaryCause = isApiKeyError ? "Tavily API key not configured" : `Search failed: ${errorMessage}`;
     const searchStrategy = isApiKeyError ? ("SKIP" as const) : ("FAILED" as const);
 
     return {
@@ -319,11 +197,8 @@ export const fetchDataSources = async (state: SignalGraphState) => {
         searchQueries: [],
         totalResults: 0,
         searchTime: searchDuration,
-        marketSentiment: "NEUTRAL" as const,
-        primaryCause,
-        searchStrategy,
         qualityScore: 0,
-        newsCategory: "NEUTRAL" as const,
+        searchStrategy,
       },
     };
   }

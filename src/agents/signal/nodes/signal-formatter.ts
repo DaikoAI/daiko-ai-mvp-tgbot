@@ -57,12 +57,12 @@ const createMarketSnapshot = (state: SignalGraphState): string => {
     ),
   };
 
-  // Extract fundamental context from data sources
-  const fundamentalContext = evidenceResults?.primaryCause
-    ? evidenceResults.primaryCause.replace("Key factors: ", "")
+  // Extract fundamental context from signal decision
+  const fundamentalContext = signalDecision?.sentimentFactors?.length > 0
+    ? signalDecision.sentimentFactors.slice(0, 3).join(", ")
     : null;
 
-  const marketSentiment = evidenceResults?.marketSentiment || "NEUTRAL";
+  const marketSentiment = signalDecision?.marketSentiment || "NEUTRAL";
   const qualityScore = evidenceResults?.qualityScore || 0;
 
   // Create narrative based on signal strength and context
@@ -189,7 +189,8 @@ export const createSimpleSignalResponse = (state: SignalGraphState) => {
       .join("\n");
 
     // Add market sentiment and search metadata
-    const { marketSentiment = "NEUTRAL", searchTime = 0, totalResults = 0 } = state.evidenceResults || {};
+    const marketSentiment = state.signalDecision?.marketSentiment || "NEUTRAL";
+    const { searchTime = 0, totalResults = 0 } = state.evidenceResults || {};
     const sentimentEmoji = marketSentiment === "BULLISH" ? "📈" : marketSentiment === "BEARISH" ? "📉" : "⚖️";
 
     if (sourceLinks) {

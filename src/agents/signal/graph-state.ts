@@ -50,7 +50,9 @@ export const signalGraphState = Annotation.Root({
     keyFactors: string[];
     riskLevel: "LOW" | "MEDIUM" | "HIGH";
     timeframe: "SHORT" | "MEDIUM" | "LONG";
-    marketSentiment: string; // Overall market mood for this token
+    marketSentiment: "BULLISH" | "BEARISH" | "NEUTRAL"; // Overall market sentiment based on news analysis
+    sentimentConfidence: number; // Confidence level in sentiment analysis (0-1)
+    sentimentFactors: string[]; // Key factors influencing market sentiment
     priceExpectation: string; // What might happen to price and why
   }>({
     reducer: (x, y) => y ?? x,
@@ -70,10 +72,7 @@ export const signalGraphState = Annotation.Root({
     totalResults: number;
     searchTime: number;
     qualityScore: number;
-    primaryCause: string | null;
-    searchStrategy: "BASIC" | "SKIP" | "FAILED";
-    marketSentiment: "BULLISH" | "BEARISH" | "NEUTRAL";
-    newsCategory: "BULLISH" | "BEARISH" | "NEUTRAL";
+    searchStrategy: "FUNDAMENTAL" | "SKIP" | "FAILED";
   }>({
     reducer: (x, y) => y ?? x,
   }),
