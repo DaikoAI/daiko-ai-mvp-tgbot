@@ -209,7 +209,13 @@ export class BacktestEngine {
     const overallSuggestions: string[] = [];
     const metrics4h = overallMetrics["4h"];
 
-    if (metrics4h.winRate < 0.6) {
+    const PERFORMANCE_THRESHOLDS = {
+      MIN_WIN_RATE: 0.6,
+      MIN_RISK_REWARD_RATIO: 1.5,
+      MAX_DRAWDOWN: 0.2,
+    } as const;
+
+    if (metrics4h.winRate < PERFORMANCE_THRESHOLDS.MIN_WIN_RATE) {
       overallSuggestions.push("Overall win rate is below 60% - review signal generation criteria");
     }
 
