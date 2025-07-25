@@ -87,13 +87,18 @@ export const fetchDataSources = async (state: SignalGraphState) => {
     });
 
     const marketSentiment =
-      bullishCount > bearishCount * SENTIMENT_THRESHOLD_MULTIPLIER ? "BULLISH" : bearishCount > bullishCount * SENTIMENT_THRESHOLD_MULTIPLIER ? "BEARISH" : "NEUTRAL";
+      bullishCount > bearishCount * SENTIMENT_THRESHOLD_MULTIPLIER
+        ? "BULLISH"
+        : bearishCount > bullishCount * SENTIMENT_THRESHOLD_MULTIPLIER
+          ? "BEARISH"
+          : "NEUTRAL";
 
     // Calculate quality score based on relevance and recency
     // Calculate quality score based on relevance and recency
-    const avgScore = relevantSources.length > 0
-      ? relevantSources.reduce((sum, source) => sum + source.score, 0) / relevantSources.length
-      : 0;
+    const avgScore =
+      relevantSources.length > 0
+        ? relevantSources.reduce((sum, source) => sum + source.score, 0) / relevantSources.length
+        : 0;
     const qualityScore = Math.min(avgScore * (relevantSources.length / 3), 1);
 
     logger.info("Data fetch completed successfully", {
