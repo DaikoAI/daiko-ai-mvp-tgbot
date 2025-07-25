@@ -203,6 +203,11 @@ const getClosestPrice = async (
  * Calculate return based on direction
  */
 const calculateReturn = (entryPrice: number, exitPrice: number, direction: string): number => {
+  if (entryPrice === 0) {
+    logger.warn("Entry price is zero, cannot calculate return");
+    return 0;
+  }
+
   if (direction === "BUY") {
     return (exitPrice - entryPrice) / entryPrice;
   } else if (direction === "SELL") {
