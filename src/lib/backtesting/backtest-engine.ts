@@ -14,6 +14,15 @@ import {
 import type { BacktestConfig, BacktestReport, SignalResult } from "./types";
 
 /**
+ * Performance threshold constants for signal evaluation
+ */
+const PERFORMANCE_THRESHOLDS = {
+  MIN_WIN_RATE: 0.6, // 60% minimum win rate threshold
+  MIN_RISK_REWARD_RATIO: 1.5, // 1.5:1 minimum risk/reward ratio
+  MAX_DRAWDOWN: 0.2, // 20% maximum drawdown threshold
+} as const;
+
+/**
  * Main backtesting engine that orchestrates the entire backtesting process
  */
 export class BacktestEngine {
@@ -209,21 +218,15 @@ export class BacktestEngine {
     const overallSuggestions: string[] = [];
     const metrics4h = overallMetrics["4h"];
 
-    const PERFORMANCE_THRESHOLDS = {
-      MIN_WIN_RATE: 0.6,
-      MIN_RISK_REWARD_RATIO: 1.5,
-      MAX_DRAWDOWN: 0.2,
-    } as const;
-
     if (metrics4h.winRate < PERFORMANCE_THRESHOLDS.MIN_WIN_RATE) {
       overallSuggestions.push("Overall win rate is below 60% - review signal generation criteria");
     }
 
-    if (metrics4h.riskRewardRatio < 1.5) {
+    if (metrics4h.riskRewardRatio < PERFORMANCE_THRESHOLDS.MIN_RISK_REWARD_RATIO) {
       overallSuggestions.push("Risk/reward ratio is below 1.5 - consider tighter stop losses or higher profit targets");
     }
 
-    if (metrics4h.maxDrawdown > 0.2) {
+    if (metrics4h.maxDrawdown > PERFORMANCE_THRESHOLDS.MAX_DRAWDOWN) {
       overallSuggestions.push("Maximum drawdown exceeds 20% - implement better risk management");
     }
 

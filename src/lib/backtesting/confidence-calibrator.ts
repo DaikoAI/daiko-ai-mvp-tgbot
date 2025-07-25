@@ -19,7 +19,7 @@ export const calibrateConfidence = (
 
   for (const bucket of config.confidenceBuckets) {
     const bucketSignals = signals.filter((signal) => {
-      return signal.confidence >= bucket.min && signal.confidence < bucket.max;
+      return signal.confidence >= bucket.min && signal.confidence <= bucket.max;
     });
 
     if (bucketSignals.length === 0) {
@@ -68,9 +68,7 @@ export const calculateOptimalConfidenceThreshold = (
   signals: SignalResult[],
   timeframe: "1h" | "4h" | "24h",
   targetWinRate: number = 0.7,
-  targetWinRate: number = 0.7,
   minSampleSize: number = 30,
-): { threshold: number; actualWinRate: number; sampleSize: number } => {
 ): { threshold: number; actualWinRate: number; sampleSize: number } => {
   // Test different confidence thresholds from high to low to prefer higher thresholds
   const thresholds = Array.from({ length: 10 }, (_, i) => 0.95 - i * 0.05);
@@ -145,16 +143,9 @@ export const generateCalibrationRecommendations = (
   }
 
   // Check for sufficient sample sizes
-// Define thresholds as constants for consistency
-const MIN_SAMPLE_SIZE_FOR_SIGNIFICANCE = 30;
-const MIN_SAMPLE_SIZE_FOR_WARNING = 20;
+  const MIN_SAMPLE_SIZE_FOR_WARNING = 20;
+  const lowSampleBuckets = calibrationResults.filter((bucket) => bucket.sampleSize < MIN_SAMPLE_SIZE_FOR_WARNING);
 
-export const generateCalibrationRecommendations = (
-  calibrationResults: CalibrationResult[],
-  // …other parameters
-) => {
-  // …function body
-}
   if (lowSampleBuckets.length > 0) {
     recommendations.push(
       `${lowSampleBuckets.length} confidence buckets have insufficient samples (<20) - collect more data`,
