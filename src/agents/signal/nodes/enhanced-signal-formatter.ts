@@ -148,12 +148,12 @@ const generateActionPlan = (
     : getConfig().defaultTargetPercent;
 
   const entryPrice = currentPrice;
-  const stopPrice = direction === "BUY"
-    ? currentPrice * (1 - getConfig().stopLossPercent / 100)
-    : currentPrice * (1 + getConfig().stopLossPercent / 100);
-  const targetPrice = direction === "BUY"
-    ? currentPrice * (1 + targetPercent / 100)
-    : currentPrice * (1 - targetPercent / 100);
+  const stopPrice =
+    direction === "BUY"
+      ? currentPrice * (1 - getConfig().stopLossPercent / 100)
+      : currentPrice * (1 + getConfig().stopLossPercent / 100);
+  const targetPrice =
+    direction === "BUY" ? currentPrice * (1 + targetPercent / 100) : currentPrice * (1 - targetPercent / 100);
 
   return {
     entry: entryPrice.toFixed(8),
@@ -285,9 +285,16 @@ export const createEnhancedSignalResponse = async (state: SignalGraphState) => {
   const analyzer = new TechnicalIndicatorAnalyzer(state.technicalAnalysis);
   const indicatorBullets = analyzer.getBulletPoints();
 
-  const whySection = indicatorBullets.length > 0
-    ? indicatorBullets.slice(0, 3).map((bullet) => `● ${bullet}`).join("\n")
-    : signalDecision.keyFactors.slice(0, 3).map((factor) => `● ${factor}`).join("\n");
+  const whySection =
+    indicatorBullets.length > 0
+      ? indicatorBullets
+          .slice(0, 3)
+          .map((bullet) => `● ${bullet}`)
+          .join("\n")
+      : signalDecision.keyFactors
+          .slice(0, 3)
+          .map((factor) => `● ${factor}`)
+          .join("\n");
 
   const actionPlan = generateActionPlan(signalDecision.direction, currentPrice, metrics);
   const marketIntel = buildMarketIntelSection(state.evidenceResults);
@@ -306,8 +313,11 @@ export const createEnhancedSignalResponse = async (state: SignalGraphState) => {
 
   // Determine level based on risk and confidence
   const level =
-    signalDecision.riskLevel === "HIGH" || signalDecision.confidence >= 0.8 ? 3 :
-    signalDecision.riskLevel === "MEDIUM" || signalDecision.confidence >= 0.6 ? 2 : 1;
+    signalDecision.riskLevel === "HIGH" || signalDecision.confidence >= 0.8
+      ? 3
+      : signalDecision.riskLevel === "MEDIUM" || signalDecision.confidence >= 0.6
+        ? 2
+        : 1;
 
   return {
     finalSignal: {

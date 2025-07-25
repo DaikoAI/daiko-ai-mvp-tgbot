@@ -14,7 +14,9 @@ export const signalAnalysisSchema = z.object({
   keyFactors: z.array(z.string()).max(3),
   riskLevel: z.enum(["LOW", "MEDIUM", "HIGH"]),
   timeframe: z.enum(["SHORT", "MEDIUM", "LONG"]),
-  marketSentiment: z.enum(["BULLISH", "BEARISH", "NEUTRAL"]).describe("Overall market sentiment based on news sources analysis"),
+  marketSentiment: z
+    .enum(["BULLISH", "BEARISH", "NEUTRAL"])
+    .describe("Overall market sentiment based on news sources analysis"),
   sentimentConfidence: z.number().min(0).max(1).describe("Confidence in the sentiment analysis"),
   sentimentFactors: z.array(z.string()).max(5).describe("Key factors influencing market sentiment"),
   priceExpectation: z.string(),

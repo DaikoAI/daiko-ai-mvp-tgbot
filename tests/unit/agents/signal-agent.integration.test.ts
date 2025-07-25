@@ -26,42 +26,43 @@ const createMockAnalysis = (overrides: Partial<TechnicalAnalysis> = {}): Technic
   ...overrides,
 });
 
-const createMockState = (overrides: Partial<SignalGraphState> = {}): SignalGraphState => ({
-  tokenSymbol: "SOL",
-  tokenAddress: "So11111111111111111111111111111111111111112",
-  currentPrice: 100,
-  technicalAnalysis: createMockAnalysis(),
-  staticFilterResult: {
-    shouldProceed: true,
-    triggeredIndicators: ["RSI_OVERSOLD"],
-    signalCandidates: ["BUY"],
-    confluenceScore: 0.65,
-    riskLevel: "MEDIUM",
-  },
-  evidenceResults: {
-    relevantSources: [],
-    searchQueries: [],
-    totalResults: 0,
-    searchTime: 0,
-    qualityScore: 0,
-    searchStrategy: "SKIP",
-  },
-  signalDecision: {
-    shouldGenerateSignal: true,
-    signalType: "RSI_OVERSOLD",
-    direction: "BUY",
-    confidence: 0.65,
-    reasoning: "Strong oversold signal",
-    keyFactors: ["RSI oversold", "VWAP deviation"],
-    riskLevel: "MEDIUM",
-    timeframe: "SHORT",
-    marketSentiment: "BULLISH",
-    sentimentConfidence: 0.7,
-    sentimentFactors: ["Positive market indicators"],
-    priceExpectation: "Recovery expected",
-  },
-  ...overrides,
-} as SignalGraphState);
+const createMockState = (overrides: Partial<SignalGraphState> = {}): SignalGraphState =>
+  ({
+    tokenSymbol: "SOL",
+    tokenAddress: "So11111111111111111111111111111111111111112",
+    currentPrice: 100,
+    technicalAnalysis: createMockAnalysis(),
+    staticFilterResult: {
+      shouldProceed: true,
+      triggeredIndicators: ["RSI_OVERSOLD"],
+      signalCandidates: ["BUY"],
+      confluenceScore: 0.65,
+      riskLevel: "MEDIUM",
+    },
+    evidenceResults: {
+      relevantSources: [],
+      searchQueries: [],
+      totalResults: 0,
+      searchTime: 0,
+      qualityScore: 0,
+      searchStrategy: "SKIP",
+    },
+    signalDecision: {
+      shouldGenerateSignal: true,
+      signalType: "RSI_OVERSOLD",
+      direction: "BUY",
+      confidence: 0.65,
+      reasoning: "Strong oversold signal",
+      keyFactors: ["RSI oversold", "VWAP deviation"],
+      riskLevel: "MEDIUM",
+      timeframe: "SHORT",
+      marketSentiment: "BULLISH",
+      sentimentConfidence: 0.7,
+      sentimentFactors: ["Positive market indicators"],
+      priceExpectation: "Recovery expected",
+    },
+    ...overrides,
+  }) as SignalGraphState;
 
 describe("Signal Agent Integration Tests", () => {
   describe("Full Graph Functionality", () => {

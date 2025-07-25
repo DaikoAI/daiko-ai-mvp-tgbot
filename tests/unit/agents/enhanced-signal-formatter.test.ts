@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { SignalGraphState } from "../../../src/agents/signal/graph-state";
-import { createNoSignalResponse, formatEnhancedSignal } from "../../../src/agents/signal/nodes/enhanced-signal-formatter";
+import {
+  createNoSignalResponse,
+  formatEnhancedSignal,
+} from "../../../src/agents/signal/nodes/enhanced-signal-formatter";
 import type { TechnicalAnalysis } from "../../../src/db/schema/technical-analysis";
 
 // Mock dependencies using bun:test mock
 const mockCollectSignalPerformanceData = mock();
-const mockCreatePhantomButtons = mock(() => [
-  { text: "Buy on Phantom", url: "https://phantom.app/buy/SOL" },
-]);
+const mockCreatePhantomButtons = mock(() => [{ text: "Buy on Phantom", url: "https://phantom.app/buy/SOL" }]);
 const mockLogger = {
   info: mock(() => {}),
   warn: mock(() => {}),
@@ -94,7 +95,7 @@ const buildMockState = (overrides: Partial<SignalGraphState> = {}): SignalGraphS
         title: "Solana Network Updates: New Developments",
         url: "https://solana.com/news",
         content: "Latest Solana network improvements",
-        score: 0.80,
+        score: 0.8,
         domain: "solana.com",
       },
     ],
@@ -131,14 +132,16 @@ describe("Enhanced Signal Formatter", () => {
   describe("formatEnhancedSignal - Normal Cases", () => {
     it("should return enhanced signal with all expected properties for BUY signal", async () => {
       // Setup
-      mockCollectSignalPerformanceData.mockImplementation(() => Promise.resolve([
-        {
-          signalType: "Oversold Bounce",
-          direction: "BUY",
-          return4h: 0.12,
-          isWin4h: true,
-        },
-      ]));
+      mockCollectSignalPerformanceData.mockImplementation(() =>
+        Promise.resolve([
+          {
+            signalType: "Oversold Bounce",
+            direction: "BUY",
+            return4h: 0.12,
+            isWin4h: true,
+          },
+        ]),
+      );
 
       const state = buildMockState();
 
@@ -182,7 +185,7 @@ describe("Enhanced Signal Formatter", () => {
           shouldGenerateSignal: true,
           signalType: "Trend Reversal",
           direction: "SELL",
-          confidence: 0.80,
+          confidence: 0.8,
           reasoning: "SOL showing bearish reversal signals",
           keyFactors: ["RSI 85 - overbought", "VWAP resistance"],
           riskLevel: "MEDIUM",
@@ -213,7 +216,7 @@ describe("Enhanced Signal Formatter", () => {
           shouldGenerateSignal: true,
           signalType: "Range Bound",
           direction: "NEUTRAL",
-          confidence: 0.60,
+          confidence: 0.6,
           reasoning: "SOL trading in neutral range",
           keyFactors: ["RSI 50 - neutral", "No clear trend"],
           riskLevel: "LOW",
@@ -295,7 +298,6 @@ describe("Enhanced Signal Formatter", () => {
       // Setup backtest data collection failure
       mockCollectSignalPerformanceData.mockImplementation(() => Promise.resolve([]));
 
-
       const state = buildMockState();
 
       // Execute
@@ -309,7 +311,9 @@ describe("Enhanced Signal Formatter", () => {
 
     it("should handle backtest data collection errors", async () => {
       // Setup backtest data collection error
-      mockCollectSignalPerformanceData.mockImplementation(() => Promise.reject(new Error("Database connection failed")));
+      mockCollectSignalPerformanceData.mockImplementation(() =>
+        Promise.reject(new Error("Database connection failed")),
+      );
 
       const state = buildMockState();
 
@@ -355,9 +359,9 @@ describe("Enhanced Signal Formatter", () => {
       // Ensure we're in test environment
       process.env.NODE_ENV = "test";
 
-      mockCollectSignalPerformanceData.mockImplementation(() => Promise.resolve([
-        { signalType: "Oversold Bounce", direction: "BUY", return4h: 0.12, isWin4h: true },
-      ]));
+      mockCollectSignalPerformanceData.mockImplementation(() =>
+        Promise.resolve([{ signalType: "Oversold Bounce", direction: "BUY", return4h: 0.12, isWin4h: true }]),
+      );
 
       const state = buildMockState();
 
@@ -378,9 +382,9 @@ describe("Enhanced Signal Formatter", () => {
       // Set production environment
       process.env.NODE_ENV = "production";
 
-      mockCollectSignalPerformanceData.mockImplementation(() => Promise.resolve([
-        { signalType: "Oversold Bounce", direction: "BUY", return4h: 0.12, isWin4h: true },
-      ]));
+      mockCollectSignalPerformanceData.mockImplementation(() =>
+        Promise.resolve([{ signalType: "Oversold Bounce", direction: "BUY", return4h: 0.12, isWin4h: true }]),
+      );
 
       const state = buildMockState();
 

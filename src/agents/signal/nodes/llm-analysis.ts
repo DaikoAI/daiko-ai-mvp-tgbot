@@ -34,23 +34,40 @@ export const analyzeLLMSignal = async (state: SignalGraphState) => {
     const sourcesCount = sources.length;
     const qualityScore = state.evidenceResults?.qualityScore?.toFixed(2) || "0.00";
 
-    // Format external sources for LLM analysis
-    const externalSources = sources.length > 0
-      ? sources.map((source, index) => {
-          const domainNote = source.domain.includes("coindesk.com") ||
-                           source.domain.includes("cointelegraph.com") ||
-                           source.domain.includes("decrypt.co") ||
-                           source.domain.includes("theblock.co") ?
-                           " (High-quality source)" : "";
-          return `${index + 1}. ${source.title}${domainNote}
+    const formatExternalSources = (
+      sources: Array<{
+        domain?: string;
+        title?: string;
+        content?: string;
+        score?: number;
+        publishedDate?: string;
+      }>,
+    ): string => {
+      if (sources.length === 0) {
+        return "No external sources available for sentiment analysis.";
+      }
+
+      return sources
+        .map((source, index) => {
+          // データ検証
+          if (!source.domain || !source.title || !source.content) {
+            return `${index + 1}. Invalid source data`;
+          }
+
+          const safeContent = source.content.slice(0, 800).replace(/[<>]/g, ""); // XSS対策
+
+          return `${index + 1}. ${source.title}
 Domain: ${source.domain}
-Score: ${source.score.toFixed(2)}
-Content: ${source.content.slice(0, 800)}...
+Score: ${source.score?.toFixed(2) || "N/A"}
+Content: ${safeContent}...
 Published: ${source.publishedDate || "N/A"}
 `;
-        }).join("\n")
-      : "No external sources available for sentiment analysis.";
+        })
+        .join("\n");
+    };
 
+    // Format external sources for LLM analysis
+    const externalSources = formatExternalSources(sources);
     const result = await chain.invoke({
       formatInstructions: parser.getFormatInstructions(),
       tokenSymbol: state.tokenSymbol,

@@ -19,7 +19,13 @@ export const calibrateConfidence = (
 
   for (const bucket of config.confidenceBuckets) {
     const bucketSignals = signals.filter((signal) => {
-      return signal.confidence >= bucket.min && signal.confidence <= bucket.max;
+      // Make upper bound exclusive for all buckets except the last one (max = 1.0)
+      // This prevents signals from being assigned to multiple buckets
+      const isLastBucket = bucket.max === 1.0;
+      return (
+        signal.confidence >= bucket.min &&
+        (isLastBucket ? signal.confidence <= bucket.max : signal.confidence < bucket.max)
+      );
     });
 
     if (bucketSignals.length === 0) {
@@ -37,7 +43,8 @@ export const calibrateConfidence = (
 
     // Calculate actual win rate for this confidence bucket
     const actualWinRate = calculateWinRateForTimeframe(bucketSignals, timeframe);
-    const predictedWinRate = (bucket.min + bucket.max) / 2; // Use average as predicted
+    // Use average confidence of signals in bucket instead of midpoint
+    const predictedWinRate = bucketSignals.reduce((sum, signal) => sum + signal.confidence, 0) / bucketSignals.length;
     const calibrationError = Math.abs(predictedWinRate - actualWinRate);
 
     calibrationResults.push({

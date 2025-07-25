@@ -58,9 +58,8 @@ const createMarketSnapshot = (state: SignalGraphState): string => {
   };
 
   // Extract fundamental context from signal decision
-  const fundamentalContext = signalDecision?.sentimentFactors?.length > 0
-    ? signalDecision.sentimentFactors.slice(0, 3).join(", ")
-    : null;
+  const fundamentalContext =
+    signalDecision?.sentimentFactors?.length > 0 ? signalDecision.sentimentFactors.slice(0, 3).join(", ") : null;
 
   const marketSentiment = signalDecision?.marketSentiment || "NEUTRAL";
   const qualityScore = evidenceResults?.qualityScore || 0;

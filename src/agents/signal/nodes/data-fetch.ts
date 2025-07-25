@@ -148,12 +148,18 @@ export const fetchDataSources = async (state: SignalGraphState) => {
     // Calculate quality score based on source quality and relevance
     const fundamentalSourceCount = qualitySources.filter((s) => FUNDAMENTAL_DOMAINS.includes(s.domain)).length;
 
+    // Quality score weights based on empirical testing
+    const SCORE_WEIGHT = 0.7; // Weight for average relevance score
+    const FUNDAMENTAL_WEIGHT = 0.3; // Weight for fundamental source ratio
+
     const avgScore =
       qualitySources.length > 0
         ? qualitySources.reduce((sum, source) => sum + source.score, 0) / qualitySources.length
         : 0;
 
-    const qualityScore = Math.min(avgScore * 0.7 + (fundamentalSourceCount / qualitySources.length) * 0.3, 1);
+    const fundamentalRatio = qualitySources.length > 0 ? fundamentalSourceCount / qualitySources.length : 0;
+
+    const qualityScore = Math.min(avgScore * SCORE_WEIGHT + fundamentalRatio * FUNDAMENTAL_WEIGHT, 1);
 
     logger.info("Fundamental data fetch completed", {
       tokenSymbol,
