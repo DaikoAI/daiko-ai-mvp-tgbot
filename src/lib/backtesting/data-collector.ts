@@ -175,8 +175,18 @@ const getClosestPrice = async (
       return null;
     }
 
+    const parsedPrice = parseFloat(priceData.close);
+    if (isNaN(parsedPrice)) {
+      logger.warn("Invalid price data encountered during parsing", {
+        tokenAddress,
+        invalidValue: priceData.close,
+        timestamp: priceData.timestamp,
+      });
+      return null;
+    }
+
     return {
-      price: parseFloat(priceData.close),
+      price: parsedPrice,
       timestamp: priceData.timestamp,
     };
   } catch (error) {
