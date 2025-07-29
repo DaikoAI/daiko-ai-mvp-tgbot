@@ -1,4 +1,4 @@
-import { pgTable, text, integer, numeric, primaryKey, index } from "drizzle-orm/pg-core";
+import { index, integer, numeric, pgTable, primaryKey, text } from "drizzle-orm/pg-core";
 import { tokens } from "./tokens";
 
 export const tokenOHLCV = pgTable(
